@@ -1,0 +1,33 @@
+{
+  "name": "market",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "format": "prettier --write src/",
+    "supabase:init": "supabase init --force",
+    "supabase:login": "supabase login",
+    "supabase:link": "supabase link --project-ref grgkbscnjeqvlsuzkujs",
+    "db:migrate:new": "supabase migration new upd",
+    "db:reset": "supabase db reset --linked",
+    "db:seed": "node --env-file=.env database/seed.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "axios": "^1.8.3",
+    "pinia": "^3.0.1",
+    "supabase": "^2.19.7",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "prettier": "3.5.3",
+    "vite": "^6.2.1",
+    "vite-plugin-vue-devtools": "^7.7.2"
+  }
+}
