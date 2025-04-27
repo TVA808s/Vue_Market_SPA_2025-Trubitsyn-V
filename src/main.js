@@ -11,9 +11,9 @@ app.use(createPinia())
 app.use(router)
 app.use(VueLazyload, {
   preLoad: 1.2,
-  error: '@/images/not-found.webp',
+  error: 'images/not-found.webp',
   attempt: 1,
-  loading: '@/images/no-photo.avif',
+  loading: 'images/no-photo.avif',
   ssr: true
 })
 
