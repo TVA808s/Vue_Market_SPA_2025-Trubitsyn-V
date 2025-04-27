@@ -1,20 +1,142 @@
-DROP TABLE IF EXISTS market;
+DROP TABLE IF EXISTS products;
 
-CREATE TABLE market(
+
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    avatar_url TEXT,
+    full_name TEXT
+);
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own profile" 
+ON profiles 
+FOR ALL 
+USING (auth.uid() = id);
+
+
+CREATE TABLE products (
     id SMALLINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY NOT NULL,
     stock SMALLINT NOT NULL,
     title TEXT NOT NULL UNIQUE,
     category TEXT NOT NULL,
-    price REAL NOT NULL,
+    price NUMERIC(6, 2) NOT NULL,
     description TEXT NOT NULL,
-    rate REAL NOT NULL,
+    rate NUMERIC(2, 1) NOT NULL DEFAULT 0 CHECK (rate BETWEEN 0 AND 5),
     image TEXT NOT NULL,
-    discount SMALLINT NOT NULL,
+    discount SMALLINT NOT NULL DEFAULT 0 CHECK (discount BETWEEN 0 AND 100),
     color TEXT NOT NULL,
     brand TEXT NOT NULL
 );
 
-INSERT INTO market (stock, title, category, price, description, image, discount, color, brand, rate) VALUES
+
+CREATE TABLE IF NOT EXISTS favourites (
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    product_id SMALLINT REFERENCES products(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, product_id)
+);
+ALTER TABLE favourites ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own favourites" 
+ON favourites 
+FOR ALL 
+USING (auth.uid() = user_id);
+
+
+CREATE TABLE IF NOT EXISTS orders(
+    id SMALLINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY NOT NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    total NUMERIC(10, 2) NOT NULL CHECK (total >= 0)
+);
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own orders" 
+ON orders 
+FOR ALL 
+USING (auth.uid() = user_id);
+
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id SMALLINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY NOT NULL,
+    order_id SMALLINT REFERENCES orders(id) ON DELETE CASCADE,
+    product_id SMALLINT REFERENCES products(id) ON DELETE SET NULL,
+    quantity SMALLINT NOT NULL CHECK (quantity > 0),
+    price_at_order NUMERIC(7, 2) NOT NULL
+);
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own order items" 
+ON order_items 
+FOR ALL 
+USING (
+  EXISTS (
+    SELECT 1 FROM orders 
+    WHERE orders.id = order_items.order_id 
+    AND orders.user_id = auth.uid()
+  )
+);
+
+
+DROP TRIGGER IF EXISTS on_change_position ON order_items;
+DROP TRIGGER IF EXISTS on_change_quantity ON order_items;
+DROP TRIGGER IF EXISTS on_change_price ON products;
+
+-- ПРИ ИЗМЕНЕНИИ КОЛИЧЕСТВА ТОВАРА В ПОЗИЦИИ МЕНЯЕТСЯ ЦЕНА ПОЗИЦИИ
+CREATE OR REPLACE FUNCTION set_price_at_order()
+RETURNS TRIGGER AS $$
+DECLARE 
+    product_price NUMERIC (6,2);
+BEGIN 
+    SELECT price INTO product_price 
+    from products
+    WHERE id = NEW.product_id;
+    
+    NEW.price_at_order := product_price * NEW.quantity;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER on_change_quantity
+BEFORE INSERT OR UPDATE OF quantity ON order_items
+FOR EACH ROW EXECUTE FUNCTION set_price_at_order();
+
+-- ПРИ ИЗМЕНЕНИИ ЦЕНЫ ПОЗИЦИЙ МЕНЯЕТСЯ ЦЕНА ЗАКАЗА
+CREATE OR REPLACE FUNCTION set_total()
+RETURNS TRIGGER AS $$
+DECLARE 
+    target_order_id SMALLINT;
+BEGIN
+    target_order_id := COALESCE(NEW.order_id, OLD.order_id);
+    UPDATE orders
+    SET total = (
+        SELECT SUM(price_at_order) FROM order_items
+        WHERE order_id = target_order_id)
+    WHERE id = target_order_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER on_change_position
+AFTER INSERT OR UPDATE OR DELETE ON order_items
+FOR EACH ROW EXECUTE FUNCTION set_total();
+
+-- ПРИ ИЗМЕНЕНИИ ЦЕНЫ ТОВАРА МЕНЯЕТСЯ ЦЕНА ПОЗИЦИИ
+CREATE OR REPLACE FUNCTION set_price()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE order_items
+    SET price_at_order = NEW.price * quantity
+    WHERE product_id = NEW.id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER on_change_price
+AFTER UPDATE OF price ON products
+FOR EACH ROW EXECUTE FUNCTION set_price();
+
+-- Индексы для ускорения БД
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_products_title ON products USING GIN(title gin_trgm_ops);
+CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_favourites_user ON favourites(user_id);
+
+-- ИНСЕРТЫ
+INSERT INTO products (stock, title, category, price, description, image, discount, color, brand, rate) VALUES
 (12, 'Sony WH-1000XM3 Bluetooth Wireless Over Ear Headphones with Mic (Silver)', 'audio', 773, 'Digital noise cancelling : Industry leading Active Noise Cancellation (ANC) lends a personalized, virtually soundproof experience at any situation\r\nHi-Res Audio : A built-in amplifier integrated in HD Noise Cancelling Processor QN1 realises the best-in-class signal-to-noise ratio and low distortion for portable devices.\r\nDriver Unit : Powerful 40-mm drivers with Liquid Crystal Polymer (LCP) diaphragms make the headphones perfect for handling heavy beats and can reproduce a full range of frequencies up to 40 kHz.\r\nVoice assistant : Alexa enabled (In-built) for voice access to music, information and more. Activate with a simple touch. Frequency response: 4 Hz-40,000 Hz', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692947383286-714WUJlhbLS._SL1500_.jpg', 11, 'grey', 'sony', 4.5),
 (4, 'Microsoft Xbox X/S Wireless Controller Robot White', 'gaming', 57, 'Experience the modernized design of the Xbox wireless controller in robot white, featuring sculpted surfaces and refined Geometry for enhanced comfort and effortless control during gameplay\r\nStay on target with textured grip on the triggers, bumpers, and back case and with a new hybrid D-pad for accurate, yet familiar input\r\nMake the controller your own by customizing button Mapping with the Xbox accessories app', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692255251854-xbox.jpg', 4, 'white', 'microsoft', 4.8),
 (7, 'Logitech G733 Lightspeed Wireless Gaming Headset with Suspension Headband, LIGHTSYNC RGB, Blue VO!CE mic Technology and PRO-G Audio Drivers - White', 'gaming', 384, 'Total freedom with up to 20 m wireless range and LIGHTSPEED wireless audio transmission. Keep playing for up to 29 hours of battery life. 1 Play in stereo on PlayStation(R) 4.\r\nPersonalize your headset lighting across the full spectrum, 16. 8M colors. Play in colors with front-facing, dual-zone LIGHTSYNC RGB lighting and choose from preset animations or create your own with G HUB software.\r\nColorful, reversible suspension headbands are designed for comfort during long play sessions.\r\nAdvanced mic filters that make your voice sound richer, cleaner, and more professional. Customize with G HUB and find your sound.\r\nHear every audio cue with breathtaking clarity and get immerse in your game. PRO-G drivers are designed to significantly reduce distortion and reproduce precise, consistent, rich sound quality.\r\nSoft dual-layer memory foam that conforms to your head and reduces stress points for long-lasting comfort.\r\nG733 weighs only 278 g for long-lasting comfort.', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692257709689-logitech heaphone.jpg', 3, 'white', 'logitech G', 3.9),
@@ -34,16 +156,16 @@ INSERT INTO market (stock, title, category, price, description, image, discount,
 (20, 'Ant Esports GP310 Wireless Gamepad, Compatible for PC & Laptop (Windows 10/8 /7, Steam) / PS3 / Android', 'gaming', 59, 'Compatibility – PC / Laptop Computer(Windows 10/8/7/XP), Steam, Play Station 3(PS3), Android Mobile Phone*/Tablet*/the device needs support OTG function( * not all Android phones are supported, check your device before purchasing for Android devices, Limited games can play on it which are supported to android games)\r\nExcellent Design – Equipped with 2.4Ghz wireless technology, supports up to 10m range | Wear-resistant Anti-slip Joystick | Cool Appearance | Comfortable Grip\r\nPlug & Play -Only for PC games supporting X input mode, Android mobile games supporting Android mode, Play Station 3. No need to install drivers except for Windows XP\r\nFeature - Multi-mode : X input, D input, Android, PS3 | Vibration Feedback Function', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692255692675-ant sport.jpg', 3, 'black', 'ant esports', 4.2),
 (2, 'Logitech G502 Lightspeed Wireless Gaming Mouse, 25K Hero Gaming Sensor, 25600 DPI, RGB, Ultra-Light, 11 Programmable Buttons, Long Life Battery, PowerPlay-Compatible, PC - Black', 'gaming', 20, 'COLORFUL LIGHTSYNC RGB : Play in colour with our most vibrant LIGHTSYNC RGB featuring colour wave effects that are customisable across 16.8 million colours. 8,000 DPI sensor.\r\nCLASSIC,GAMER TESTED DESIGN : Play comfortably and with total control. The simple 6-button layout and classic gaming shape form a comfortable, time-tested and loved design\r\nMECHANICAL SPRING BUTTON TENSIONING: Primary buttons are mechanical and tensioned with durable metal springs for reliability, performance and an excellent feel\r\nCUSTOMIZABLE SETTINGS : To suit the sensitivity you like with Logitech G HUB gaming software and cycle easily through up to 5 DPI settings; SYSTEM REQUIREMENTS : Windows 7 or later, macOS 10.11 or later, Chrome OSTM, USB port, Internet access for Logitech Gaming Software (optional)\r\nStyle Name: G102 2nd Gen', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692257315660-logitech.jpg', 9, 'black', 'logitech', 3.9),
 (0, 'Sony PS5 PlayStation Console+God Of War Ragnarok | Standard Edition | PS5 Game (PlayStation 5)', 'gaming', 708, 'Maximize your play sessions with near instant load times for installed PS5 games.\r\nThe custom integration of the PS5 console systems lets creators pull data from the SSD so quickly that they can design games in ways never before possible.\r\nImmerse yourself in worlds with a new level of realism as rays of light are individually simulated, creating true-to-life shadows and reflections in supported PS5 games.\r\nPlay your favorite PS5 games on your stunning 4K TV.\r\nThose who break fate: Atreus seeks knowledge to help him understand the prophecy of Loki and what role he is to play in Ragnarök. Kratos must decide whether he will be chained by the fear of repeating his mistakes or break free of his past to be the father Atreus needs.', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692459170997-61iHq6qV0gL._SL1422_.jpg', 11, 'white', 'sony', 3.8),
-(5, 'Wireless Bluetooth Headphones', 'electronics', 129, 'Noise-cancelling over-ear headphones with 30h battery', 'https://picsum.photos/200/300', 15, 'black', 'Sony', 4.7),
-(12, 'Cotton T-Shirt', 'clothing', 24, 'Premium organic cotton crew neck t-shirt', 'https://placehold.co/200x300', 0, 'white', 'H&M', 4.3),
-(25, 'Electric Kettle', 'kitchen', 45, '1.7L stainless steel fast-boiling kettle', 'https://picsum.photos/201/301', 10, 'grey', 'Philips', 4.5),
-(3, 'Running Shoes', 'sports', 89, 'Lightweight mesh sneakers with air cushion', 'https://placehold.co/201x301', 20, 'blue', 'Nike', 4.8),
-(15, 'Smart Watch', 'electronics', 199, 'Fitness tracker with heart rate monitor', 'https://picsum.photos/202/302', 25, 'grey', 'Apple', 4.9),
-(20, 'Novel "The Silent Forest"', 'books', 14, 'Bestselling mystery thriller paperback', 'https://placehold.co/202x302', 0, 'beige', 'Penguin', 4.6),
-(4, 'Ceramic Coffee Mug', 'kitchen', 12, '350ml handmade ceramic mug', 'https://picsum.photos/203/303', 5, 'beige', 'IKEA', 4.4),
-(3, 'Yoga Mat', 'sports', 34, '6mm thick eco-friendly mat', 'https://placehold.co/203x303', 0, 'purple', 'Adidas', 4.2),
+(5, 'Wireless Bluetooth Headphones', 'electronics', 129, 'Noise-cancelling over-ear headphones with 30h battery', 'https://cdn1.ozone.ru/s3/multimedia-l/6216636393.jpg', 15, 'black', 'Sony', 4.7),
+(12, 'Cotton T-Shirt', 'clothing', 24, 'Premium organic cotton crew neck t-shirt', 'https://cdn1.ozone.ru/s3/multimedia-i/c600/6703854102.jpg', 0, 'white', 'H&M', 4.3),
+(25, 'Electric Kettle', 'kitchen', 45, '1.7L stainless steel fast-boiling kettle', 'https://i.ebayimg.com/images/g/x6AAAOSwN6VelHdv/s-l1600.jpg', 10, 'grey', 'Philips', 4.5),
+(3, 'Running Shoes', 'sports', 89, 'Lightweight mesh sneakers with air cushion', 'https://i.pinimg.com/originals/40/de/69/40de693a197132d3b1da64aa14d45c0e.jpg', 20, 'blue', 'Nike', 4.8),
+(15, 'Smart Watch', 'electronics', 199, 'Fitness tracker with heart rate monitor', 'https://avatars.mds.yandex.net/get-mpic/6458782/img_id3039830389997932666.jpeg/orig', 25, 'grey', 'Apple', 4.9),
+(20, 'Novel "The Silent Forest"', 'books', 14, 'Bestselling mystery thriller paperback', 'https://i.ytimg.com/vi/vRo3cjc9cG4/maxresdefault.jpg', 0, 'beige', 'Penguin', 4.6),
+(4, 'Ceramic Coffee Mug', 'kitchen', 12, '350ml handmade ceramic mug', 'https://avatars.mds.yandex.net/get-mpic/15339463/2a00000193a8421611ae01f473c70761efb7/orig', 5, 'beige', 'IKEA', 4.4),
+(3, 'Yoga Mat', 'sports', 34, '6mm thick eco-friendly mat', 'https://avatars.mds.yandex.net/i?id=a34fc8b816c4e1f366d062bd334b02e3_l-4569510-images-thumbs&n=13', 0, 'purple', 'Adidas', 4.2),
 (6, 'Wireless Mouse', 'electronics', 29, 'Ergonomic optical silent mouse', 'https://picsum.photos/204/304', 10, 'black', 'Logitech', 4.5),
-(9, 'Denim Jacket', 'clothing', 79, 'Vintage wash trucker jacket', 'https://placehold.co/204x304', 30, 'blue', 'Levi''s', 4.7),
+(9, 'Denim Jacket', 'clothing', 79, 'Vintage wash trucker jacket', 'https://st-levis.mncdn.com/Content/media/ProductImg/original/7233405670-the-trucker-jacket-tr-indigo-erkek-trucker-637393943233766323.jpg', 30, 'blue', 'Levi''s', 4.7),
 (50, 'Panasonic RB-M300B Deep Bass Wireless Bluetooth Immersive Headphones with XBS DEEP and Bass Augmentation (Sand Beige), RB-M300B-C', 'audio', 289, 'ULTRA-LOW BASS RESPONSE Enjoy powerful deep bass, without compromising the depth and balance of the track\r\nWIRELESS PERFORMANCE Reliable Bluetooth connectivity with built-in microphone\r\n50 HOURS PLAYBACK On a full four-hour charge, plus quick 15min charge for 3 hours playback\r\nDUO POWER DRIVERS Two 40 mm Neodymium driver units provide deep, yet delicate bass sound\r\nHIGH-COMFORT FIT Soft cushioned headband and earpads fit gently over the ears for hours of anytime anywhere comfort', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1691056086962-headphone.jpg', 15, 'white', 'panasonic', 4.7),
 (120, 'Sony WH-CH520, Wireless On-Ear Bluetooth Headphones with Mic...', 'audio', 54, 'With up to 50-hour battery life and quick charging, you’ll have enough power for multi-day road trips and long festival weekends.\r\nGreat sound quality customizable to your music preference with EQ Custom on the Sony | Headphones Connect App.\r\nBoost the quality of compressed music files and enjoy streaming music with high quality sound through DSEE.\r\nDesigned to be lightweight and comfortable for all-day use.', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692941955003-headphone2.jpg', 3, 'grey', 'sony', 4.5),
 (80, 'boAt Stone 180 5W Bluetooth Speaker with Upto 10 Hours Playback...', 'audio', 13, 'Stone 180 comes equipped with 1.75\" Dynamic Drivers for powerful immersive sound\r\nIts power packed 800mAh battery ensures extended indulgence in musical bliss with up to 10 hours of play time, Charging Time : 1.5 Hours\r\nThe speaker offers 5W of premium High Definition sound, Frequency Response - 70Hz-70kHz\r\nStone 180 supports instant wireless connectivity with latest Bluetooth v5.0\r\nConnect two Stone 180’s and turn the scene right around with double the volume at the same clarity level, get the party started anywhere, anytime with the boAt Stone 180\r\nIt is IPX7 rated which offers protection against sweat and water.', 'https://storage.googleapis.com/fir-auth-1c3bc.appspot.com/1692943845065-71vI6nfLtYL._SL1500_.jpg', 2, 'black', 'boat', 4.3),

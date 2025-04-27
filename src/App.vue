@@ -17,7 +17,23 @@
           <div class="header-pages">
             <RouterLink to="/favourite" data-hint="Favourite" aria-label="Favourite"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="currentColor" d="m12.1 18.55l-.1.1l-.11-.1C7.14 14.24 4 11.39 4 8.5C4 6.5 5.5 5 7.5 5c1.54 0 3.04 1 3.57 2.36h1.86C13.46 6 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5c0 2.89-3.14 5.74-7.9 10.05M16.5 3c-1.74 0-3.41.81-4.5 2.08C10.91 3.81 9.24 3 7.5 3C4.42 3 2 5.41 2 8.5c0 3.77 3.4 6.86 8.55 11.53L12 21.35l1.45-1.32C18.6 15.36 22 12.27 22 8.5C22 5.41 19.58 3 16.5 3"/></svg></RouterLink>
             <RouterLink to="/cart" data-hint="Cart" aria-label="Cart"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"><path fill="currentColor" d="M19 20c0 1.11-.89 2-2 2a2 2 0 0 1-2-2c0-1.11.89-2 2-2a2 2 0 0 1 2 2M7 18c-1.11 0-2 .89-2 2a2 2 0 0 0 2 2c1.11 0 2-.89 2-2s-.89-2-2-2m.2-3.37l-.03.12c0 .14.11.25.25.25H19v2H7a2 2 0 0 1-2-2c0-.35.09-.68.24-.96l1.36-2.45L3 4H1V2h3.27l.94 2H20c.55 0 1 .45 1 1c0 .17-.05.34-.12.5l-3.58 6.47c-.34.61-1 1.03-1.75 1.03H8.1zM8.5 11H10V9H7.56zM11 9v2h3V9zm3-1V6h-3v2zm3.11 1H15v2h1zm1.67-3H15v2h2.67zM6.14 6l.94 2H10V6z"/></svg></RouterLink>
-            <RouterLink to="/profile" data-hint="Profile" aria-label="Profile"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 32 32"><path fill="currentColor" d="M12 4a5 5 0 1 1-5 5a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7m10 28h-2v-5a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v5H2v-5a7 7 0 0 1 7-7h6a7 7 0 0 1 7 7zm0-26h10v2H22zm0 5h10v2H22zm0 5h7v2h-7z"/></svg></RouterLink>
+            <!-- <RouterLink to="/profile" data-hint="Profile" aria-label="Profile"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 32 32"><path fill="currentColor" d="M12 4a5 5 0 1 1-5 5a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7m10 28h-2v-5a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v5H2v-5a7 7 0 0 1 7-7h6a7 7 0 0 1 7 7zm0-26h10v2H22zm0 5h10v2H22zm0 5h7v2h-7z"/></svg></RouterLink> -->
+            <DropdownMenu>
+              <DropdownMenuTrigger data-hint="Profile" class="cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 32 32"><path fill="currentColor" d="M12 4a5 5 0 1 1-5 5a5 5 0 0 1 5-5m0-2a7 7 0 1 0 7 7a7 7 0 0 0-7-7m10 28h-2v-5a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v5H2v-5a7 7 0 0 1 7-7h6a7 7 0 0 1 7 7zm0-26h10v2H22zm0 5h10v2H22zm0 5h7v2h-7z"/></svg>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel class="cursor-pointer"><RouterLink to="/profile" aria-label="Profile">Profile</RouterLink></DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel class="cursor-pointer">
+                  Regestration
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel class="cursor-pointer">Login</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel class="cursor-pointer">Logout</DropdownMenuLabel>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </nav>
     </header>
@@ -26,7 +42,47 @@
     </div>
   </div>
   <div class="content">
-    <RouterView :key="$route.fullPath"/>
+    <RouterView :key="$route.fullPath"  />
+  </div>
+  <div class="logWindow" v-if="userSession.openLogWindow">
+    <div class="logWindowContent">
+      <div class="contentHeader">
+        <Button @click="logOrReg=true; errorMessage=''">login</Button>
+        <Button @click="logOrReg=false; errorMessage=''">regisration</Button>
+        <div class="closeLogWindow" @click="closeLogWindow()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m18 18l-6-6m0 0L6 6m6 6l6-6m-6 6l-6 6"/></svg>        </div>
+      </div>
+      <div class="contentBody" v-if="logOrReg">
+        <div class="contentTitle">
+          Login
+        </div>
+        <div class="error" v-if="errorMessage !== ''">
+          {{ errorMessage }}
+        </div>
+        <form @submit.prevent="loginUser()">
+          Mail
+          <Input v-model="mail" type="text" required/>
+          Password
+          <Input v-model="pass" type="password" required/>
+          <Button type="submit">Submit</Button>
+        </form>
+      </div>
+      <div class="contentBody" v-else>
+        <div class="contentTitle">
+          Registation
+        </div>
+        <div class="error" v-if="errorMessage !== ''">
+          {{ errorMessage }}
+        </div>
+        <form @submit.prevent="registerUser()">
+          Mail
+          <Input v-model="mail" type="text" required/>
+          Password
+          <Input v-model="pass" type="password" required/>
+          <Button type="submit">Submit</Button>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -34,9 +90,57 @@
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { ref} from 'vue'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from './components/ui/dropdown-menu'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useUserSessionStore, supabase } from '@/stores/userSession';
+const router = useRouter()
+const errorMessage = ref('')
+const route = useRoute()
+const userSession = useUserSessionStore();
+const mail = ref('')
+const pass = ref('')
+const logOrReg = ref(true)
 const categories = ref(['tv', 'audio', 'clothing', 'sports', 'electronics', 'gaming', 'mobile', 'books'])
+const closeLogWindow = () => {
+  userSession.openLogWindow = false
+  logOrReg.value = true
+  errorMessage.value = ''
+}
 
+const loginUser = async () => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: mail.value,
+    password: pass.value
+  })
+  if (error) {
+    errorMessage.value = error.message
+  }
+  else {
+    userSession.setLoggedIn(true)
+    closeLogWindow()
+    router.push(router.currentRoute.value.query.redirect)
+    mail.value = ''
+    pass.value = ''
+  }
+}
+const registerUser = async () => {
+  const { data, error } = await supabase.auth.signUp({
+    email: mail.value,
+    password: pass.value
+  })
+  if (error) {
+    errorMessage.value = error.message
+  }
+  if (!data.user.identities.length) {
+    errorMessage.value = 'User already signed up'
+  }
+  else{
+    logOrReg.value = !logOrReg.value
+    mail.value = ''
+    pass.value = ''
+  }
+}
 </script>
 
 
@@ -126,5 +230,81 @@ const categories = ref(['tv', 'audio', 'clothing', 'sports', 'electronics', 'gam
     width: 95%;
     margin: 0 auto;
   }
+  .logWindow{
+    width: 100%;
+    height: 100vh;
+    position: fixed;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    background-color: #3f3f3f56;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .logWindowContent{
+      display: flex;
+      border: 1px solid black;
+      border-radius: 15px;
+      flex-direction: column;
+      background-color: #ffffff;
+      width: 80%;
+      max-width: 550px;
+      padding: 20px 35px;
+      .error{
+        display: flex;
+        justify-content: center;
+        font-size: 18px;
+        border-radius: 15px;
+        background-color: #ffc0c0;
+        padding: 5px;
+      }
+      .contentHeader{
+        display: flex;
+        position: relative;
+        justify-content: center;
+        gap: 20px;
+        .closeLogWindow{
+          border-radius: 5px;
 
+          position: absolute;
+          left: 101%;
+          top: -15px;
+        }
+        .closeLogWindow:hover{
+          background-color: #ffc0c0;
+          transition: 0.2s;
+        }
+        Button{
+          height: 30px;
+          color: #5a5a5a;
+          background-color: white;
+        }
+        Button:hover{
+          background-color: #e4e4e4;
+          transition: 0.1s;
+          color: rgb(68, 68, 68);
+        }
+      }
+      .contentBody{
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        .contentTitle{
+          font-size: 20px;
+          font-weight: 600;
+        }
+        form{
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          Input{
+            height: 35px;
+          }
+          Button{
+            margin-top: 10px;
+          }
+        }
+      }
+    }
+  }
 </style>

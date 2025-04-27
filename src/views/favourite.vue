@@ -268,6 +268,7 @@ import SelectItem from '@/components/ui/select/SelectItem.vue'
 import SelectValue from '@/components/ui/select/SelectValue.vue'
 import SelectTrigger from '@/components/ui/select/SelectTrigger.vue'
 import SelectLabel from '@/components/ui/select/SelectLabel.vue'
+import { supabase } from '@/stores/userSession'
 </script>
 
 <style lang="scss" scoped>

@@ -105,6 +105,7 @@
 <script setup>
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue';
 import Button from '@/components/ui/button/Button.vue';
+import { supabase } from '@/stores/userSession';
 </script>
 
 <style lang="scss" scoped>

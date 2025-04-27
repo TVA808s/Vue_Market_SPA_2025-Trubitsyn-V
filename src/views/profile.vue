@@ -1,12 +1,16 @@
 <template>
   <div class='content'>
     <aside class="sidebar">
-      <form>
+      <div class="sidebarContent">
         <Skeleton class="h-[150px] w-[150px]"></Skeleton>
-        <h2>Username</h2>
-        <h3>+79006008020</h3>
-        <Button>Change info</Button>
-      </form>
+        <div class="sidebarButtons">
+          <div class="info">
+            {{ user.email }}
+          </div>
+          <Button @click="changeInfo()">change info</Button>
+          <Button @click="logoutUser()">logout</Button>
+        </div>
+      </div>
     </aside>
 
     <div class="main-side">
@@ -158,12 +162,59 @@
         </div>
       </main>
     </div>
+    <div class="logWindow" >
+      <div class="logWindowContent">
+        <div class="contentHeader">
+          <Button @click="logOrReg=true; errorMessage=''">login</Button>
+          <Button @click="logOrReg=false; errorMessage=''">regisration</Button>
+          <div class="closeLogWindow" @click="closeLogWindow()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m18 18l-6-6m0 0L6 6m6 6l6-6m-6 6l-6 6"/></svg>        </div>
+        </div>
+        <div class="contentBody" v-if="logOrReg">
+          <div class="contentTitle">
+            Login
+          </div>
+          <div class="error" v-if="errorMessage !== ''">
+            {{ errorMessage }}
+          </div>
+          <form @submit.prevent="loginUser()">
+            Mail
+            <Input v-model="mail" type="text" required/>
+            Password
+            <Input v-model="pass" type="password" required/>
+            <Button type="submit">Submit</Button>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
-import Button from '@/components/ui/button/Button.vue';
+import Button from '@/components/ui/button/Button.vue'
+import { supabase } from '@/stores/userSession'
+import { onMounted, ref } from 'vue'
+import { useUserSessionStore } from '@/stores/userSession'
+import { useRouter } from 'vue-router'
+const userSession = useUserSessionStore()
+const user = ref('')
+const router = useRouter()
+onMounted(async()=>{
+  const { data: {user: authUser} } = await supabase.auth.getUser()
+  user.value = authUser
+
+})
+const changeInfo = (async () => {
+
+  const {data, error} = await supabase.auth.updateUser({password: '123456', email: ''})
+
+})
+const logoutUser = (async () => {
+  const {error} = await supabase.auth.signOut()
+  userSession.setLoggedIn(false)
+  router.push({name: 'market'})
+})
 </script>
 
 <style lang="scss" scoped>
@@ -177,20 +228,47 @@ h2{
 h3{
   @extend %h3;
 }
-.content{
-display: flex;
-padding: 20px 0px;
-gap:50px;
+@media (width <= 720px) {
+  .content{
+    flex-direction: column;
+    .sidebar{
+      .sidebarContent{
+        display: flex;
+        gap: 20px;
+        .sidebarButtons{
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          flex-grow: 1;
+          Button{
+            width: 100%;
+          }
+        }
+      }
+    }
+  }
+}
+@media (width > 720px) {
 .sidebar{
   position: sticky;
   top: 15px;
   height: 100vh;
-  form{
+  .sidebarButtons{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .sidebarContent{
     display: flex;
     flex-direction: column;
     gap: 20px;
   }
 }
+}
+.content{
+display: flex;
+padding: 20px 0px;
+gap:50px;
 .main-side{
   display: flex;
   flex-direction: column;
