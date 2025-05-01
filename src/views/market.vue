@@ -143,7 +143,7 @@
 
       <div class="card" v-for="product in products" :key="product.id" >
         <div class="img-div">
-          <img v-lazy="product.image" :alt="product.category">
+          <img v-lazy="optimizeImg(product.image)" :alt="product.category">
         </div>
         <button id="card-button">
           <h4 id="title">{{ product.title }}</h4>
@@ -185,6 +185,10 @@ const props = defineProps({
     default: null
   }
 })
+
+const optimizeImg = (url) => {
+  return `https://evilworldwide.site/image-proxy/?url=${encodeURIComponent(url)}`;
+};
 
 // вывод карточек
 const products = ref([])
