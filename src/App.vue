@@ -3,11 +3,11 @@
     <header>
         <nav>
           <div class="header-market">
-            <RouterLink to="/" data-hint="Sell page" aria-label="Sell page">Market</RouterLink>
+            <RouterLink to="/" @click="resetWindow()" data-hint="Sell page" aria-label="Sell page">Market</RouterLink>
           </div>
           <form @submit.prevent="searchFunc(search)">
             <div id="searchbar" class="relative w-full items-center">
-              <Input @input="searchFunc(search)" v-model="search" id="search" type="text" placeholder="Search..." class="pl-10 w-full" />
+              <Input v-model="search" id="search" type="text" placeholder="Search..." class="pl-10 w-full" />
               <span class="absolute start-0 inset-y-0 flex items-center justify-center px-2">
                 <Search class="text-muted-foreground" />
               </span>
@@ -88,13 +88,14 @@
 
 <script setup>
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-vue-next'
+import { Search, SquareEqual } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from './components/ui/dropdown-menu'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserSessionStore, supabase } from '@/stores/userSession';
 import { useGetProductsStore } from './stores/getProducts'
+const route = useRoute()
 const router = useRouter()
 const errorMessage = ref('')
 const getProducts = useGetProductsStore()
@@ -110,8 +111,21 @@ const closeLogWindow = () => {
   errorMessage.value = ''
 }
 
+// сброс страницы по нажатию названия (из-аккаунта не выкидывает)
+const resetWindow = () => {
+  getProducts.setCategoryName('')
+  if(route.path.length === 1) {
+    router.go()
+  } else {
+    router.push('/')
+  }
+}
+
 const searchFunc = (value) => {
   getProducts.setSearch(value)
+  getProducts.productsReset()
+  getProducts.fetchProducts()
+  search.value = ''
 }
 
 const loginUser = async () => {

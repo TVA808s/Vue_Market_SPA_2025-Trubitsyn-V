@@ -54,9 +54,12 @@ export const useGetProductsStore = defineStore('getProducts', () => {
         .in('color', filters.colors)
         .not('discount', 'eq', filters.discount)
         .in('brand', filters.brand)
-
       if (categoryName.value) fetch = fetch.eq('category', categoryName.value)
-      // if (search.value != '') {fetch = fetch.ilike('title', search.value);}
+      if (search.value) {
+        fetch = fetch.or(
+          `title.ilike.%${search.value}%, description.ilike.%${search.value}%, brand.ilike.%${search.value}%, category.ilike.%${search.value}%`,
+        )
+      }
       const {data, error} = await fetch
 
       moreGoods.value = data.length >= 1
@@ -68,7 +71,6 @@ export const useGetProductsStore = defineStore('getProducts', () => {
       loading.value = false
     }
   }
-
   const productsReset = () => {
     filters.start = 0
     filters.end = 12

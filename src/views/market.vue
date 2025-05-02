@@ -197,6 +197,7 @@ const handleScroll = () => {
 }
 
 onMounted(() => {
+  getProducts.productsReset()
   getProducts.fetchProducts()
   window.addEventListener('scroll', handleScroll)
 })
