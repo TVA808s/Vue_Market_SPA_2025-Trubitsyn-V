@@ -5,9 +5,9 @@
           <div class="header-market">
             <RouterLink to="/" data-hint="Sell page" aria-label="Sell page">Market</RouterLink>
           </div>
-          <form>
+          <form @submit.prevent="searchFunc(search)">
             <div id="searchbar" class="relative w-full items-center">
-              <Input id="search" type="text" placeholder="Search..." class="pl-10 w-full" />
+              <Input @input="searchFunc(search)" v-model="search" id="search" type="text" placeholder="Search..." class="pl-10 w-full" />
               <span class="absolute start-0 inset-y-0 flex items-center justify-center px-2">
                 <Search class="text-muted-foreground" />
               </span>
@@ -91,21 +91,27 @@ import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from './components/ui/dropdown-menu'
-import { ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserSessionStore, supabase } from '@/stores/userSession';
+import { useGetProductsStore } from './stores/getProducts'
 const router = useRouter()
 const errorMessage = ref('')
-const route = useRoute()
+const getProducts = useGetProductsStore()
 const userSession = useUserSessionStore();
 const mail = ref('')
 const pass = ref('')
+const search = ref('')
 const logOrReg = ref(true)
 const categories = ref(['tv', 'audio', 'clothing', 'sports', 'electronics', 'gaming', 'mobile', 'books'])
 const closeLogWindow = () => {
   userSession.openLogWindow = false
   logOrReg.value = true
   errorMessage.value = ''
+}
+
+const searchFunc = (value) => {
+  getProducts.setSearch(value)
 }
 
 const loginUser = async () => {

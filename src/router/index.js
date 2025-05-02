@@ -48,9 +48,9 @@ router.beforeEach((to, from, next) => {
     userSession.setOpenLogWindow(true)
     next({ name: 'market', query: {redirect: to.fullPath}})
   }
-  else next()
+  else {
+    next()
+  }
 });
-
-
 
 export default router

@@ -122,7 +122,7 @@
     <div class="top-main-side">
     <h2>Sell page</h2>
     <form @change="sortApply()">
-    <Select v-model="filters.sorting">
+    <Select v-model="sorting">
       <SelectTrigger class="w-[300px]">
         <SelectValue placeholder="Sort by" />
       </SelectTrigger>
@@ -137,11 +137,11 @@
     </Select>
   </form>
     </div>
-    {{ props.searching }}
+
     <main class="cards">
       <!-- товары -->
 
-      <div class="card" v-for="product in products" :key="product.id" >
+      <div class="card" v-for="product in getProducts.products" :key="product.id" >
         <div class="img-div">
           <img v-lazy="product.image" :alt="product.category">
         </div>
@@ -167,111 +167,40 @@ import Input from '@/components/ui/input/Input.vue'
 import Checkbox  from '@/components/ui/checkbox/Checkbox.vue'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectValue, SelectTrigger, SelectLabel } from '@/components/ui/select/index.js'
 import Button from '@/components/ui/button/Button.vue'
-import {reactive, ref, onMounted, defineProps, watch} from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { supabase } from '@/stores/userSession'
-
-const route = useRoute()
-const router = useRouter()
+import {ref, onMounted} from 'vue'
+import { useGetProductsStore } from '@/stores/getProducts'
+const getProducts = useGetProductsStore()
 
 // работа категорий
 const props = defineProps({
   categoryName: {
     type: String,
     default: null
-  },
-  searching: {
-    type: String,
-    default: null
   }
 })
 
-// вывод карточек
-const products = ref([])
-const loading = ref(true)
-const moreGoods = ref(true)
-
-const filters = reactive({
-  start: 0,
-  end: 12,
-  from: 0,
-  to: 32000,
-  colors: ['grey','yellow','pink','blue','purple','beige','black','white'],
-  discount: 0,
-  brand: [
-    "sony",          "microsoft",      "logitech G",
-    "urbanista",     "xiaomi",         "boat",
-    "samsung",       "Amkette",        "apple",
-    "ant esports",   "logitech",       "Sony",
-    "H&M",           "Philips",        "Nike",
-    "Apple",         "Penguin",        "IKEA",
-    "Adidas",        "Logitech",       "Levi's",
-    "panasonic",     "mivi",           "JBL",
-    "Mivi",          "soundcore",      "Marshall",
-    "Bang & Olufsen","jbl",            "Denon",
-    "redmi",         "mi",             "acer",
-    "LG"
-  ],
-  sorting: ['id', {ascending: true}]
-})
-
-const fetchProducts = async () => {
-  try {
-    loading.value = true
-    let fetch = supabase
-      .from('products')
-      .select('*')
-      .order(filters.sorting[0], filters.sorting[1])
-      .range(filters.start, filters.end - 1)
-      .gte('price', filters.from)
-      .lte('price', filters.to)
-      .in('color', filters.colors)
-      .not('discount', 'eq', filters.discount)
-      .in('brand', filters.brand)
-
-    if (props.categoryName) fetch = fetch.eq('category', props.categoryName)
-    if (props.searching) {fetch = fetch.ilike('title', props.searching); console.log(props.searching)}
-    const {data, error} = await fetch
-
-    moreGoods.value = data.length >= 12
-    products.value = [...products.value, ...data]
-
-  } catch (e) {
-    console.log(e.message)
-  } finally {
-    loading.value = false
-  }
+if (props.categoryName) {
+  getProducts.setCategoryName(props.categoryName)
+  getProducts.productsReset()
 }
 
-// сброс товаров
-const productsReset = () => {
-  filters.start = 0
-  filters.end = 12
-  products.value = []
-  moreGoods.value = true
-}
-
-watch(() => route.params.resetProducts, (newVal) =>{
-  if (newVal) {
-    productsReset()
-    router.replace({params: { resetProducts: undefined } })
-  }
-})
 
 // функционал скролинга
 const handleScroll = () => {
   const { scrollTop, clientHeight, scrollHeight } = document.documentElement
   const isBottom = scrollTop + clientHeight >= scrollHeight - 300
-  if (isBottom && !loading.value && moreGoods.value) {
-    filters.start = filters.start + 12
-    filters.end = filters.end + 12
-    fetchProducts()
+  if (isBottom && getProducts.moreGoods && !getProducts.loading) {
+    getProducts.filters.start = getProducts.filters.start + 12
+    getProducts.filters.end = getProducts.filters.end + 12
+    getProducts.fetchProducts()
   }
 }
+
 onMounted(() => {
-  fetchProducts()
+  getProducts.fetchProducts()
   window.addEventListener('scroll', handleScroll)
 })
+
 
 // обработка карточек
   // скелетоны можно добавить
@@ -282,12 +211,10 @@ const Stars = (rate) => {
   if (4<rate && rate<5) return '★★★★☆'
   return '★★★★★'
 }
-// const loadImageError = (event) => {
-// event.target.src = no_image
-// event.target.onerror = null
-// }
 
 // функционал сортировки
+const sorting = ref('')
+
 const sortTypes = ref([
   {text: "default", value: ["id", {ascending: true}]},
   {text: "cost-up", value: ["price", {ascending: true}]},
@@ -297,19 +224,20 @@ const sortTypes = ref([
 ])
 
 const sortApply = () => {
-  productsReset()
-  fetchProducts()
+  getProducts.filters.sorting = sorting.value
+  getProducts.productsReset()
+  getProducts.fetchProducts()
 }
 
 
 // функционал aside
 const asideApply = (event) => {
   const formData = new FormData(event.target)
-  filters.from = formData.get('from') || 0
-  filters.to = formData.get('to') || 32000
-  filters.colors = formData.getAll('color').length != 0 ? formData.getAll('color') : ['grey','yellow','pink','blue','purple','beige','black','white']
-  filters.discount = formData.get('discount') ? 0 : 101
-  filters.brand = formData.getAll('brand').length != 0 ? formData.getAll('brand') : [
+  getProducts.filters.from = formData.get('from') || 0
+  getProducts.filters.to = formData.get('to') || 32000
+  getProducts.filters.colors = formData.getAll('color').length != 0 ? formData.getAll('color') : ['grey','yellow','pink','blue','purple','beige','black','white']
+  getProducts.filters.discount = formData.get('discount') ? 0 : 101
+  getProducts.filters.brand = formData.getAll('brand').length != 0 ? formData.getAll('brand') : [
     "sony",          "microsoft",      "logitech G",
     "urbanista",     "xiaomi",         "boat",
     "samsung",       "Amkette",        "apple",
@@ -324,8 +252,8 @@ const asideApply = (event) => {
     "LG"
   ]
 
-  productsReset()
-  fetchProducts()
+  getProducts.productsReset()
+  getProducts.fetchProducts()
 }
 </script>
 
