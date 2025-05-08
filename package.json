@@ -14,6 +14,8 @@
     "supabase:link": "supabase link --project-ref grgkbscnjeqvlsuzkujs",
     "db:migrate:new": "supabase migration new upd",
     "db:reset": "supabase db reset --linked --debug",
+    "db:pull": "supabase db pull",
+    "db:push": "supabase db push",
     "db:seed": "node --env-file=.env database/seed.js"
   },
   "dependencies": {

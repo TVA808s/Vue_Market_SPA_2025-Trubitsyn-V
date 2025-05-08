@@ -153,7 +153,7 @@
           <h4 id="price">{{ product.price }}</h4>
         </div>
         <div class="btns-div">
-          <Button class="fav"><svg id="favourite" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 2 20 20"><path fill="currentColor" d="m12.1 18.55l-.1.1l-.11-.1C7.14 14.24 4 11.39 4 8.5C4 6.5 5.5 5 7.5 5c1.54 0 3.04 1 3.57 2.36h1.86C13.46 6 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5c0 2.89-3.14 5.74-7.9 10.05M16.5 3c-1.74 0-3.41.81-4.5 2.08C10.91 3.81 9.24 3 7.5 3C4.42 3 2 5.41 2 8.5c0 3.77 3.4 6.86 8.55 11.53L12 21.35l1.45-1.32C18.6 15.36 22 12.27 22 8.5C22 5.41 19.58 3 16.5 3"/></svg></Button>
+          <Button @click="toFav(product.id)" :class="[favProducts.favList.includes(product.id) ? 'fav' : 'unfav']"><svg id="favourite" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="2 2 20 20"><path fill="currentColor" d="m12.1 18.55l-.1.1l-.11-.1C7.14 14.24 4 11.39 4 8.5C4 6.5 5.5 5 7.5 5c1.54 0 3.04 1 3.57 2.36h1.86C13.46 6 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5c0 2.89-3.14 5.74-7.9 10.05M16.5 3c-1.74 0-3.41.81-4.5 2.08C10.91 3.81 9.24 3 7.5 3C4.42 3 2 5.41 2 8.5c0 3.77 3.4 6.86 8.55 11.53L12 21.35l1.45-1.32C18.6 15.36 22 12.27 22 8.5C22 5.41 19.58 3 16.5 3"/></svg></Button>
           <Button id="add" class="to-cart">Add</Button>
         </div>
       </div>
@@ -167,10 +167,13 @@ import Input from '@/components/ui/input/Input.vue'
 import Checkbox  from '@/components/ui/checkbox/Checkbox.vue'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectValue, SelectTrigger, SelectLabel } from '@/components/ui/select/index.js'
 import Button from '@/components/ui/button/Button.vue'
-import {ref, onMounted} from 'vue'
+import {ref, onMounted, onUnmounted} from 'vue'
 import { useGetProductsStore } from '@/stores/getProducts'
+import { supabase, useUserSessionStore } from '@/stores/userSession'
+import { useFavProductsStore } from '@/stores/favProducts'
+const favProducts = useFavProductsStore()
 const getProducts = useGetProductsStore()
-
+const userSession = useUserSessionStore()
 // работа категорий
 const props = defineProps({
   categoryName: {
@@ -185,6 +188,38 @@ if (props.categoryName) {
 }
 
 
+const toFav = async (product) => {
+  const {data: {user}} = await supabase.auth.getUser()
+  if (user) {
+    if (!favProducts.favList.includes(product)) {
+      const {error} = await supabase.from('favourites').insert({user_id: user.id, product_id: product})
+      favProducts.favList.push(product)
+    } else {
+      const {error} = await supabase.from('favourites').delete().eq('user_id', user.id).eq('product_id', product)
+      favProducts.favList.splice(favProducts.favList.indexOf(product), 1)
+    }
+  } else {
+    userSession.setOpenLogWindow(true)
+  }
+}
+
+onMounted(async () => {
+  getProducts.productsReset()
+  getProducts.fetchProducts()
+  window.addEventListener('scroll', handleScroll)
+
+  const {data: {user}} = await supabase.auth.getUser()
+  if (user) {
+    const {data, error} = await supabase.from('favourites').select('product_id').eq('user_id', user.id)
+    favProducts.favList = data.map(item => item.product_id)
+  } else {
+    console.log('not logged')
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 // функционал скролинга
 const handleScroll = () => {
   const { scrollTop, clientHeight, scrollHeight } = document.documentElement
@@ -193,15 +228,9 @@ const handleScroll = () => {
     getProducts.filters.start = getProducts.filters.start + 12
     getProducts.filters.end = getProducts.filters.end + 12
     getProducts.fetchProducts()
+    console.log('scrolled')
   }
 }
-
-onMounted(() => {
-  getProducts.productsReset()
-  getProducts.fetchProducts()
-  window.addEventListener('scroll', handleScroll)
-})
-
 
 // обработка карточек
   // скелетоны можно добавить
@@ -451,11 +480,15 @@ padding: 20px 0px;
       display: flex;
       width: 100%;
       gap: 10px;
-      .fav{
+      .unfav{
         background-color: rgb(235, 235, 235);
         color: rgb(179, 114, 114);
       }
-      .fav:hover{
+      .fav{
+        background-color: rgb(255, 222, 222);
+        color: rgb(238, 31, 31);
+      }
+      .unfav:hover, .fav:hover{
         transition: 0.1s ease-out;
         background-color: rgb(228, 207, 207);
         color: rgb(236, 115, 115);

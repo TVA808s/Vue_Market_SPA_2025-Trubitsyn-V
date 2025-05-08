@@ -29,7 +29,7 @@ export const useGetProductsStore = defineStore('getProducts', () => {
       "redmi",         "mi",             "acer",
       "LG"
     ],
-    sorting: ['id', {ascending: true}]
+    sorting: ['id', {ascending: true}],
   })
 
   const setSearch = (value) => {
@@ -41,7 +41,7 @@ export const useGetProductsStore = defineStore('getProducts', () => {
   const returnValue = (some) => {
     return some.value
   }
-  const fetchProducts = async () => {
+  const fetchProducts = async (favs) => {
     try {
       loading.value = true
       let fetch = supabase
@@ -60,6 +60,9 @@ export const useGetProductsStore = defineStore('getProducts', () => {
           `title.ilike.%${search.value}%, description.ilike.%${search.value}%, brand.ilike.%${search.value}%, category.ilike.%${search.value}%`,
         )
       }
+      if (favs) {
+        fetch = fetch.in('id', favs)
+      }
       const {data, error} = await fetch
 
       moreGoods.value = data.length >= 1
@@ -74,6 +77,7 @@ export const useGetProductsStore = defineStore('getProducts', () => {
   const productsReset = () => {
     filters.start = 0
     filters.end = 12
+    filters.favs = []
     products.value = []
     moreGoods.value = true
   }

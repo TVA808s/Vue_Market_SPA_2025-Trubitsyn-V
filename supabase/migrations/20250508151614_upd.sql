@@ -1,9 +1,7 @@
-DROP TABLE IF EXISTS products;
-
 
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    avatar_url TEXT,
+    avatar BYTEA,
     full_name TEXT
 );
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -12,8 +10,9 @@ ON profiles
 FOR ALL 
 USING (auth.uid() = id);
 
+CREATE TABLE IF NOT EXISTS auth.users();
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id SMALLINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY NOT NULL,
     stock SMALLINT NOT NULL,
     title TEXT NOT NULL UNIQUE,
@@ -26,7 +25,6 @@ CREATE TABLE products (
     color TEXT NOT NULL,
     brand TEXT NOT NULL
 );
-
 
 CREATE TABLE IF NOT EXISTS favourites (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,

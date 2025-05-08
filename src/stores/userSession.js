@@ -14,7 +14,7 @@ export const useUserSessionStore = defineStore('userSession', () => {
     openLogWindow.value = value;
   };
   const setOpenChangeWindow = (value) => {
-    openLogWindow.value = value;
+    openChangeWindow.value = value;
   };
   return { loggedIn, setLoggedIn, openLogWindow, setOpenLogWindow, openChangeWindow, setOpenChangeWindow};
 });
