@@ -8,6 +8,11 @@ export const useFavProductsStore = defineStore('favProducts', () => {
     favList.value = value
   }
 
-  
-  return { favList, setFavList }
+  const cartList = ref([])
+
+  const setCartList = (value) => {
+    cartList.value = value
+  }
+
+  return { favList, setFavList, cartList, setCartList }
 });

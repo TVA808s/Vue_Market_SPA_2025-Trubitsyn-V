@@ -2,8 +2,8 @@
   <div class='content'>
     <aside class="sidebar">
       <div class="sidebarContent">
-        <Skeleton class="h-[150px] w-[150px]"></Skeleton>
-        <!-- <img class="h-[150px] w-[150px]" :src="avatar"> -->
+        <!-- <Skeleton class="h-[150px] w-[150px]"></Skeleton> -->
+        <img class="h-[150px] w-[150px]" :src="avatar">
         <div class="sidebarButtons">
           <div class="info">
             {{ DisplayedEmail }}
@@ -206,36 +206,17 @@ const router = useRouter()
 const pass = ref('')
 const mail = ref('')
 const name = ref('')
-const rawPhoto = ref(new Uint8Array())
-const avatar = ref('')
 const DisplayedEmail = ref('')
-function hexStringToUint8Array(hexString) {
-  // Удаляем префикс "\x" (если есть)
-  const cleanHex = hexString.startsWith('\\x')
-    ? hexString.slice(2)
-    : hexString;
-
-  // Создаем массив байтов
-  const bytes = new Uint8Array(cleanHex.length / 2);
-  for (let i = 0; i < cleanHex.length; i += 2) {
-    bytes[i / 2] = parseInt(cleanHex.substr(i, 2), 16);
-  }
-  return bytes;
-}
-
+const avatar = ref('')
+const filePath = ref('')
 onMounted(async()=>{
   const { data: {user: authUser} } = await supabase.auth.getUser()
   if (authUser.id) {
     user.value = authUser.id
+    filePath.value = `${user.value}/avatar`
     DisplayedEmail.value = authUser.email
-    // const {data, error} = await supabase.from('profiles').select('*').eq('id', user.value)
-    // if (data) {
-    //   const byteArray = hexStringToUint8Array(data[0].avatar);
-    //   const blob = new Blob([byteArray], { type: 'image/png' });
-    //   avatar.value = URL.createObjectURL(blob);
-    //   console.log("Первые 4 байта:", byteArray.subarray(0, 4));
-
-    // }
+    const {data: urlData} = await supabase.storage.from('avatars').getPublicUrl(filePath.value)
+    avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}` // supabase игнорирует query "t" из-за чего берет изображение по ссылке, а браузер не берет прошлое закешированное изображение из-за другого запроса к серверу
   }
 })
 const openChangeInfo = (async () => {
@@ -247,7 +228,7 @@ const changeInfo = async () => {
     console.log('auth changed')
     const {data, error} = await supabase.auth.updateUser({password: pass.value, email: mail.value})
   }
-  if (name.value || rawPhoto.value) {
+  if (name.value) {
     const {data: profiles, error} = await supabase.from('profiles').select("*").eq('id', user.value)
     if (profiles.length === 0) {
       const {data, error} = await supabase.from('profiles').insert([
@@ -263,12 +244,28 @@ const changeInfo = async () => {
   }
   userSession.setOpenChangeWindow(false)
 }
+
 async function displayImage(event) {
     const file = event.target.files[0]
-    const arrayBuffer = await file.arrayBuffer()
-    const uint8array = new Uint8Array(arrayBuffer)
-    rawPhoto.value = uint8array
+    if (file.size > 10 * 1024*1024) {
+      alert('Max file size 10 MB')
+      return;
+    }
+    try {
+      console.log(filePath.value)
+      const {data} = await supabase.storage.from('avatars').exists(filePath.value)
+      if (data) {
+        await supabase.storage.from('avatars').remove([filePath.value])
+      }
+      await supabase.storage.from('avatars').upload(filePath.value, file, { upsert: true })
+      const {data: urlData} = await supabase.storage.from('avatars').getPublicUrl(filePath.value)
+      avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}`
+      await supabase.from('profiles').update({avatar_url: avatar.value}).eq('id', user.value)
+    } catch (e) {
+      console.log(e)
+    }
 }
+
 
 const logoutUser = (async () => {
   const {error} = await supabase.auth.signOut()

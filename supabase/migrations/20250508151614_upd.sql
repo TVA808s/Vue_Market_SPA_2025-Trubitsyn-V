@@ -1,7 +1,9 @@
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS order_items;
 
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    avatar BYTEA,
+    avatar_url TEXT,
     full_name TEXT
 );
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -26,11 +28,13 @@ CREATE TABLE IF NOT EXISTS products (
     brand TEXT NOT NULL
 );
 
+
 CREATE TABLE IF NOT EXISTS favourites (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     product_id SMALLINT REFERENCES products(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, product_id)
 );
+
 ALTER TABLE favourites ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage own favourites" 
 ON favourites 
@@ -38,28 +42,32 @@ FOR ALL
 USING (auth.uid() = user_id);
 
 
-CREATE TABLE IF NOT EXISTS orders(
-    id SMALLINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY NOT NULL,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'pending',
-    total NUMERIC(10, 2) NOT NULL CHECK (total >= 0)
+CREATE TABLE IF NOT EXISTS orders (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'paid', 'shipped', 'canceled')) DEFAULT 'pending',
+    total NUMERIC(10,2) NOT NULL CHECK (total >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage own orders" 
+CREATE POLICY "Users can manage own order" 
 ON orders 
 FOR ALL 
 USING (auth.uid() = user_id);
 
 
 CREATE TABLE IF NOT EXISTS order_items (
-    id SMALLINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY NOT NULL,
-    order_id SMALLINT REFERENCES orders(id) ON DELETE CASCADE,
-    product_id SMALLINT REFERENCES products(id) ON DELETE SET NULL,
-    quantity SMALLINT NOT NULL CHECK (quantity > 0),
-    price_at_order NUMERIC(7, 2) NOT NULL
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_title TEXT NOT NULL,
+    product_image TEXT NOT NULL,
+    price NUMERIC(7,2) NOT NULL CHECK (price >= 0),
+    quantity SMALLINT NOT NULL CHECK (quantity > 0)
 );
+
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own order items" 
+CREATE POLICY "Users can manage own order items" 
 ON order_items 
 FOR ALL 
 USING (
@@ -71,66 +79,99 @@ USING (
 );
 
 
+CREATE TABLE IF NOT EXISTS carts (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE carts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own cart" 
+ON carts
+FOR ALL 
+USING (auth.uid() = user_id);
+
+
+CREATE TABLE IF NOT EXISTS cart_items (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    cart_id INT NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
+    product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    quantity SMALLINT NOT NULL CHECK (quantity > 0)
+);
+
+ALTER TABLE cart_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own cart items" 
+ON cart_items 
+FOR ALL 
+USING (
+  EXISTS (
+    SELECT 1 FROM carts 
+    WHERE carts.id = cart_items.cart_id 
+    AND carts.user_id = auth.uid()
+  )
+);
+
+
 DROP TRIGGER IF EXISTS on_change_position ON order_items;
 DROP TRIGGER IF EXISTS on_change_quantity ON order_items;
 DROP TRIGGER IF EXISTS on_change_price ON products;
 
--- ПРИ ИЗМЕНЕНИИ КОЛИЧЕСТВА ТОВАРА В ПОЗИЦИИ МЕНЯЕТСЯ ЦЕНА ПОЗИЦИИ
-CREATE OR REPLACE FUNCTION set_price_at_order()
-RETURNS TRIGGER AS $$
-DECLARE 
-    product_price NUMERIC (6,2);
-BEGIN 
-    SELECT price INTO product_price 
-    from products
-    WHERE id = NEW.product_id;
+-- -- ПРИ ИЗМЕНЕНИИ КОЛИЧЕСТВА ТОВАРА В ПОЗИЦИИ МЕНЯЕТСЯ ЦЕНА ПОЗИЦИИ
+-- CREATE OR REPLACE FUNCTION set_price_at_order()
+-- RETURNS TRIGGER AS $$
+-- DECLARE 
+--     product_price NUMERIC (6,2);
+-- BEGIN 
+--     SELECT price INTO product_price 
+--     from products
+--     WHERE id = NEW.product_id;
     
-    NEW.price_at_order := product_price * NEW.quantity;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER on_change_quantity
-BEFORE INSERT OR UPDATE OF quantity ON order_items
-FOR EACH ROW EXECUTE FUNCTION set_price_at_order();
+--     NEW.price_at_order := product_price * NEW.quantity;
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+-- CREATE TRIGGER on_change_quantity
+-- BEFORE INSERT OR UPDATE OF quantity ON order_items
+-- FOR EACH ROW EXECUTE FUNCTION set_price_at_order();
 
--- ПРИ ИЗМЕНЕНИИ ЦЕНЫ ПОЗИЦИЙ МЕНЯЕТСЯ ЦЕНА ЗАКАЗА
-CREATE OR REPLACE FUNCTION set_total()
-RETURNS TRIGGER AS $$
-DECLARE 
-    target_order_id SMALLINT;
-BEGIN
-    target_order_id := COALESCE(NEW.order_id, OLD.order_id);
-    UPDATE orders
-    SET total = (
-        SELECT SUM(price_at_order) FROM order_items
-        WHERE order_id = target_order_id)
-    WHERE id = target_order_id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER on_change_position
-AFTER INSERT OR UPDATE OR DELETE ON order_items
-FOR EACH ROW EXECUTE FUNCTION set_total();
+-- -- ПРИ ИЗМЕНЕНИИ ЦЕНЫ ПОЗИЦИЙ МЕНЯЕТСЯ ЦЕНА ЗАКАЗА
+-- CREATE OR REPLACE FUNCTION set_total()
+-- RETURNS TRIGGER AS $$
+-- DECLARE 
+--     target_order_id SMALLINT;
+-- BEGIN
+--     target_order_id := COALESCE(NEW.order_id, OLD.order_id);
+--     UPDATE orders
+--     SET total = (
+--         SELECT SUM(price_at_order) FROM order_items
+--         WHERE order_id = target_order_id)
+--     WHERE id = target_order_id;
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+-- CREATE TRIGGER on_change_position
+-- AFTER INSERT OR UPDATE OR DELETE ON order_items
+-- FOR EACH ROW EXECUTE FUNCTION set_total();
 
--- ПРИ ИЗМЕНЕНИИ ЦЕНЫ ТОВАРА МЕНЯЕТСЯ ЦЕНА ПОЗИЦИИ
-CREATE OR REPLACE FUNCTION set_price()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE order_items
-    SET price_at_order = NEW.price * quantity
-    WHERE product_id = NEW.id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER on_change_price
-AFTER UPDATE OF price ON products
-FOR EACH ROW EXECUTE FUNCTION set_price();
+-- -- ПРИ ИЗМЕНЕНИИ ЦЕНЫ ТОВАРА МЕНЯЕТСЯ ЦЕНА ПОЗИЦИИ
+-- CREATE OR REPLACE FUNCTION set_price()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     UPDATE order_items
+--     SET price_at_order = NEW.price * quantity
+--     WHERE product_id = NEW.id;
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+-- CREATE TRIGGER on_change_price
+-- AFTER UPDATE OF price ON products
+-- FOR EACH ROW EXECUTE FUNCTION set_price();
 
 -- Индексы для ускорения БД
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_products_title ON products USING GIN(title gin_trgm_ops);
 CREATE INDEX idx_products_category ON products(category);
-CREATE INDEX idx_order_items_order ON order_items(order_id);
+CREATE INDEX idx_order_items_order ON cart_items(cart_id);
 CREATE INDEX idx_favourites_user ON favourites(user_id);
 
 -- ИНСЕРТЫ
