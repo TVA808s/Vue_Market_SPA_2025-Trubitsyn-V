@@ -10,6 +10,12 @@ const router = createRouter({
       component: Market,
     },
     {
+      path: '/:productId',
+      component: () => import('@/views/product.vue'),
+      name: 'product',
+      props: true
+    },
+    {
       path: '/favourite',
       name: 'favourite',
       component: () => import('@/views/favourite.vue'),

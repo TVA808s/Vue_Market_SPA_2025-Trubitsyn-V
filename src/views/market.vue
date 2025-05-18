@@ -146,7 +146,7 @@
           <img v-lazy="product.image" :alt="product.category">
         </div>
         <button id="card-button">
-          <h4 id="title">{{ product.title }}</h4>
+          <h4 id="title" @click="goToProduct(product.id)">{{ product.title }}</h4>
         </button>
         <div class="rate-price-div">
           <h4 id="rate">{{ Stars(product.rate) }}</h4>
@@ -171,9 +171,11 @@ import {ref, onMounted, onUnmounted} from 'vue'
 import { useGetProductsStore } from '@/stores/getProducts'
 import { supabase, useUserSessionStore } from '@/stores/userSession'
 import { useFavProductsStore } from '@/stores/favProducts'
+import { useRouter } from 'vue-router'
 const favProducts = useFavProductsStore()
 const getProducts = useGetProductsStore()
 const userSession = useUserSessionStore()
+const router = useRouter()
 // работа категорий
 const props = defineProps({
   categoryName: {
@@ -182,6 +184,9 @@ const props = defineProps({
   }
 })
 
+const goToProduct = (id) => {
+  router.push(`/${id}`)
+}
 
 const toCart = async (product) => {
   const {data: {user}} = await supabase.auth.getUser()
@@ -214,7 +219,8 @@ const toFav = async (product) => {
   const {data: {user}} = await supabase.auth.getUser()
   if (user) {
     if (!favProducts.favList.includes(product)) {
-      const {data:carts} = await supabase.from('carts').select('id, cart_items (product_id)').eq('user_id', user.id)
+      await supabase.from('favourites').insert({user_id: user.id, product_id: product})
+      favProducts.favList.push(product)
     } else {
       const {error} = await supabase.from('favourites').delete().eq('user_id', user.id).eq('product_id', product)
       favProducts.favList.splice(favProducts.favList.indexOf(product), 1)

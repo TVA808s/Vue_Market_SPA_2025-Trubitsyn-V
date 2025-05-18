@@ -5,9 +5,8 @@
         <!-- <Skeleton class="h-[150px] w-[150px]"></Skeleton> -->
         <img class="h-[150px] w-[150px]" :src="avatar">
         <div class="sidebarButtons">
-          <div class="info">
-            {{ DisplayedEmail }}
-          </div>
+            <h3>{{ name }}</h3>
+            <h3>{{ DisplayedEmail }}</h3>
           <Button @click="openChangeInfo()">change info</Button>
           <Button @click="logoutUser()">logout</Button>
         </div>
@@ -320,6 +319,7 @@ h3{
     flex-direction: column;
     gap: 20px;
   }
+
 }
 }
 .content{

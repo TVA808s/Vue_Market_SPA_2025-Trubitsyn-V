@@ -200,11 +200,12 @@ const registerUser = async () => {
       }
       Button{
         width: 15%;
+        background-color: #3d3535;
       }
       Button:hover{
         transition: 0.1s ease-out;
-        background-color: rgb(168 162 158);
-        color: rgb(12 10 9);
+        background-color: rgb(199, 185, 176);
+        color: rgb(63, 50, 42);
       }
     }
     svg:hover{
@@ -307,6 +308,12 @@ const registerUser = async () => {
           }
           Button{
             margin-top: 10px;
+            background-color: #3d3535;
+          }
+          Button:hover{
+            transition: 0.1s ease-out;
+            background-color: rgb(199, 185, 176);
+            color: rgb(63, 50, 42);
           }
         }
       }
