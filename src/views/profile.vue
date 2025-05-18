@@ -15,148 +15,32 @@
     <div class="main-side">
       <h2>Orders history</h2>
       <main class="orders">
-        <div class="order">
+        <div class="order" v-for="order in orders" :key="order.id">
           <div class="date-number-div">
             <div class="date-div">
               <h4>Date</h4>
-              <h4>*********</h4>
+              <h4>{{ new Date(order.created_at).toLocaleDateString('es') }}</h4>
             </div>
             <div class="number-div">
-              <h4>Number</h4>
-              <h4>*******</h4>
+              <h4>Order id</h4>
+              <h4>{{ order.id }}</h4>
             </div>
           </div>
           <div class="goods-div">
             <h4>Goods</h4>
             <div class="images-div">
+              <div class="imgDiv" v-for="item in order.order_items" :key="item.id">
+                <img :src="item.product_image" :alt="item.product_title">
+              </div>
+
+              <!-- <Skeleton class="h-[60px] w-[85px]" />
               <Skeleton class="h-[60px] w-[85px]" />
               <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
+              <Skeleton class="h-[60px] w-[85px]" /> -->
             </div>
           </div>
           <div class="total-div">
-            <h3>600$</h3>
-          </div>
-        </div>
-        <div class="order">
-          <div class="date-number-div">
-            <div class="date-div">
-              <h4>Date</h4>
-              <h4>*********</h4>
-            </div>
-            <div class="number-div">
-              <h4>Number</h4>
-              <h4>*******</h4>
-            </div>
-          </div>
-          <div class="goods-div">
-            <h4>Goods</h4>
-            <div class="images-div">
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-            </div>
-          </div>
-          <div class="total-div">
-            <h3>600$</h3>
-          </div>
-        </div>
-        <div class="order">
-          <div class="date-number-div">
-            <div class="date-div">
-              <h4>Date</h4>
-              <h4>*********</h4>
-            </div>
-            <div class="number-div">
-              <h4>Number</h4>
-              <h4>*******</h4>
-            </div>
-          </div>
-          <div class="goods-div">
-            <h4>Goods</h4>
-            <div class="images-div">
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-            </div>
-          </div>
-          <div class="total-div">
-            <h3>600$</h3>
-          </div>
-        </div>
-        <div class="order">
-          <div class="date-number-div">
-            <div class="date-div">
-              <h4>Date</h4>
-              <h4>*********</h4>
-            </div>
-            <div class="number-div">
-              <h4>Number</h4>
-              <h4>*******</h4>
-            </div>
-          </div>
-          <div class="goods-div">
-            <h4>Goods</h4>
-            <div class="images-div">
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-            </div>
-          </div>
-          <div class="total-div">
-            <h3>600$</h3>
-          </div>
-        </div>
-        <div class="order">
-          <div class="date-number-div">
-            <div class="date-div">
-              <h4>Date</h4>
-              <h4>*********</h4>
-            </div>
-            <div class="number-div">
-              <h4>Number</h4>
-              <h4>*******</h4>
-            </div>
-          </div>
-          <div class="goods-div">
-            <h4>Goods</h4>
-            <div class="images-div">
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-            </div>
-          </div>
-          <div class="total-div">
-            <h3>600$</h3>
-          </div>
-        </div>
-        <div class="order">
-          <div class="date-number-div">
-            <div class="date-div">
-              <h4>Date</h4>
-              <h4>*********</h4>
-            </div>
-            <div class="number-div">
-              <h4>Number</h4>
-              <h4>*******</h4>
-            </div>
-          </div>
-          <div class="goods-div">
-            <h4>Goods</h4>
-            <div class="images-div">
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-              <Skeleton class="h-[60px] w-[85px]" />
-            </div>
-          </div>
-          <div class="total-div">
-            <h3>600$</h3>
+            <h3>{{order.total}}$</h3>
           </div>
         </div>
       </main>
@@ -208,6 +92,8 @@ const name = ref('')
 const DisplayedEmail = ref('')
 const avatar = ref('')
 const filePath = ref('')
+const orders = ref([])
+
 onMounted(async()=>{
   const { data: {user: authUser} } = await supabase.auth.getUser()
   if (authUser.id) {
@@ -216,6 +102,9 @@ onMounted(async()=>{
     DisplayedEmail.value = authUser.email
     const {data: urlData} = await supabase.storage.from('avatars').getPublicUrl(filePath.value)
     avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}` // supabase игнорирует query "t" из-за чего берет изображение по ссылке, а браузер не берет прошлое закешированное изображение из-за другого запроса к серверу
+    const {data: myOrders, error} = await supabase.from('orders').select('*, order_items (*)').eq('user_id', user.value)
+    orders.value = myOrders
+    console.log(orders.value)
   }
 })
 const openChangeInfo = (async () => {
@@ -353,7 +242,7 @@ gap:50px;
       gap: 15px;
       .number-div,.date-div{
         display: flex;
-        justify-content: space-around;
+        justify-content: space-evenly;
         flex-wrap: wrap;
       }
     }
@@ -369,6 +258,11 @@ gap:50px;
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+        justify-content: space-evenly;
+        .imgDiv{
+          display: flex;
+          width: 80px;
+        }
       }
     }
   }

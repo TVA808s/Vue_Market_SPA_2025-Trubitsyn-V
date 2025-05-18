@@ -38,7 +38,7 @@
             <th>
               <div class="double-cell">
                 <Button @click="remove(item)">Delete</Button>
-                <Button @clicl="visit()">Visit</Button>
+                <Button @click="visit(item.product.id)">Visit</Button>
               </div>
             </th>
           </tr>
@@ -60,7 +60,7 @@
         </div>
         <div class="total-div">
           <h3>Total</h3>
-          <h3>{{ total }}</h3>
+          <h3>{{ total.toFixed(2) }}</h3>
         </div>
       </div>
     </div>
@@ -97,6 +97,7 @@
               <Button type="submit">Pay</Button>
             </div>
           </form>
+          <i>site in development state, payments are scripted, do not enter your card info</i>
         </div>
       </div>
     </div>
@@ -110,6 +111,8 @@ import { supabase } from '@/stores/userSession'
 import { useUserSessionStore } from '@/stores/userSession'
 import { useFavProductsStore } from '@/stores/favProducts'
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+const router = useRouter()
 const favProducts = useFavProductsStore()
 const userSession = useUserSessionStore()
 const masterCheck = ref(true)
@@ -144,13 +147,19 @@ const payForOrder = async () => {
           price: item.quantity * item.product.price * (1 - item.product.discount / 100)
         })))
         if (error === null) {
+          await supabase.from('cart_items').delete().eq('cart_id', cart_id.value)
           userSession.setOpenOrderWindow(false)
+          window.location.reload()
         }
       }
     } else {
       alert('www')
     }
   }
+}
+
+const visit = (id) => {
+  router.push(`/${id}`)
 }
 
 onMounted(async () => {
@@ -256,6 +265,8 @@ const remove = async (item) => {
     .eq('product_id', item.product.id)
   const index = favProducts.cartItem.indexOf(item)
   favProducts.cartItem.splice(index, 1)
+  const ind = items_to_buy.value.indexOf(item)
+  items_to_buy.value.splice(ind, 1)
 }
 </script>
 
