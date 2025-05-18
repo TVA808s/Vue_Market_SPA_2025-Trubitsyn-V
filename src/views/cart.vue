@@ -134,22 +134,34 @@ const payForOrder = async () => {
     const { paymentToken } = response.data.response
     const { data: paymentData, error } = await supabase.functions.invoke('payment', {
       body: { token: paymentToken, product_ids: product_ids }
-    });
+    })
     if (paymentData.res.paid) {
-      const {data: { user }} = await supabase.auth.getUser()
-      const {data: order, error} = await supabase.from('orders').insert({user_id: user.id, status: 'paid', total: paymentData.res.amount.value, created_at: new Date().toISOString()}).select()
+      const {
+        data: { user }
+      } = await supabase.auth.getUser()
+      const { data: order, error } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          status: 'paid',
+          total: paymentData.res.amount.value,
+          created_at: new Date().toISOString()
+        })
+        .select()
       if (order) {
-        const {data: order_items, error} = await supabase.from('order_items').insert(items_to_buy.value.map(item => ({
-          order_id: order[0].id,
-          product_image: item.product.image,
-          product_title: item.product.title,
-          quantity: item.quantity,
-          price: item.quantity * item.product.price * (1 - item.product.discount / 100)
-        })))
+        const { data: order_items, error } = await supabase.from('order_items').insert(
+          items_to_buy.value.map((item) => ({
+            order_id: order[0].id,
+            product_image: item.product.image,
+            product_title: item.product.title,
+            quantity: item.quantity,
+            price: item.quantity * item.product.price * (1 - item.product.discount / 100)
+          }))
+        )
         if (error === null) {
           await supabase.from('cart_items').delete().eq('cart_id', cart_id.value)
           userSession.setOpenOrderWindow(false)
-          window.location.reload()
+          router.push('/profile')
         }
       }
     } else {
@@ -193,7 +205,11 @@ onMounted(async () => {
 })
 
 const makeOrder = () => {
-  userSession.setOpenOrderWindow(true)
+  if (total.value < 1) {
+    alert('Get sum goods first')
+  } else {
+    userSession.setOpenOrderWindow(true)
+  }
 }
 
 const masterCheckDoSum = () => {

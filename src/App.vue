@@ -74,8 +74,7 @@
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from './components/ui/dropdown-menu'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserSessionStore, supabase } from '@/stores/userSession';
 import { useGetProductsStore } from './stores/getProducts'
@@ -89,6 +88,15 @@ const pass = ref('')
 const search = ref('')
 const logOrReg = ref(true)
 const categories = ref(['tv', 'audio', 'clothing', 'sports', 'electronics', 'gaming', 'mobile', 'books'])
+
+onMounted(async () => {
+  const {data} = await supabase.auth.getUser()
+  if (data.user.role === "authenticated") {
+    userSession.setLoggedIn(true)
+  }
+})
+
+
 const closeLogWindow = () => {
   userSession.openLogWindow = false
   logOrReg.value = true

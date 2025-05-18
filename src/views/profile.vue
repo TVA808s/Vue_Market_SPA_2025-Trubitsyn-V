@@ -15,7 +15,7 @@
     <div class="main-side">
       <h2>Orders history</h2>
       <main class="orders">
-        <div class="order" v-for="order in orders" :key="order.id">
+        <div class="order" v-for="order in reversedOrders" :key="order.id">
           <div class="date-number-div">
             <div class="date-div">
               <h4>Date</h4>
@@ -79,7 +79,7 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/stores/userSession'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useUserSessionStore } from '@/stores/userSession'
 import { useRouter } from 'vue-router'
 
@@ -93,7 +93,9 @@ const DisplayedEmail = ref('')
 const avatar = ref('')
 const filePath = ref('')
 const orders = ref([])
-
+const reversedOrders = computed(() =>{
+  return [...orders.value].reverse()
+})
 onMounted(async()=>{
   const { data: {user: authUser} } = await supabase.auth.getUser()
   if (authUser.id) {
@@ -104,7 +106,6 @@ onMounted(async()=>{
     avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}` // supabase игнорирует query "t" из-за чего берет изображение по ссылке, а браузер не берет прошлое закешированное изображение из-за другого запроса к серверу
     const {data: myOrders, error} = await supabase.from('orders').select('*, order_items (*)').eq('user_id', user.value)
     orders.value = myOrders
-    console.log(orders.value)
   }
 })
 const openChangeInfo = (async () => {
