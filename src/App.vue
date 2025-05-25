@@ -117,7 +117,7 @@ const searchFunc = (value) => {
   router.push('/')
   getProducts.setSearch(value)
   getProducts.productsReset()
-  // getProducts.fetchProducts()
+  getProducts.fetchProducts()
   search.value = ''
 }
 

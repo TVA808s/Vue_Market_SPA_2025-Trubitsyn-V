@@ -60,6 +60,7 @@ export const useGetProductsStore = defineStore('getProducts', () => {
           `title.ilike.%${search.value}%, description.ilike.%${search.value}%, brand.ilike.%${search.value}%, category.ilike.%${search.value}%`,
         )
       }
+
       if (favs) {
         fetch = fetch.in('id', favs)
       }

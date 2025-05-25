@@ -10,7 +10,7 @@ const router = createRouter({
       component: Market,
     },
     {
-      path: '/:productId',
+      path: '/market/:productId',
       component: () => import('@/views/product.vue'),
       name: 'product',
       props: true

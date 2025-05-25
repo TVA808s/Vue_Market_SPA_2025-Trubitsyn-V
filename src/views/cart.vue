@@ -1,7 +1,14 @@
 <template>
   <div class="cart">
     <h2>Cart</h2>
-    <div class="information">
+    <!-- <div v-if="cartIsNull" class="cartIsEmpty information">
+      <h3>Soooo empty.......</h3>
+      <h3>Chose some from market to see it here</h3>
+    </div> -->
+    <div v-if="cartIsLoading" class="skeletonCart" v-for="i in Array(8)">
+      <Skeleton class="h-[100px] w-full"></Skeleton>
+    </div>
+    <div class="information" v-show="!cartIsLoading">
       <table>
         <thead>
           <tr>
@@ -112,6 +119,7 @@ import { useUserSessionStore } from '@/stores/userSession'
 import { useFavProductsStore } from '@/stores/favProducts'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 const router = useRouter()
 const favProducts = useFavProductsStore()
 const userSession = useUserSessionStore()
@@ -119,7 +127,8 @@ const masterCheck = ref(true)
 const cart_id = ref('')
 const items_to_buy = ref([])
 const checkout = YooMoneyCheckout('1090142', { language: 'en' })
-
+const cartIsLoading = ref(true)
+const cartIsNull = ref(true)
 const payForOrder = async () => {
   const product_ids = []
   items_to_buy.value.forEach((item) => product_ids.push(item.id))
@@ -165,13 +174,13 @@ const payForOrder = async () => {
         }
       }
     } else {
-      alert('www')
+      alert('error')
     }
   }
 }
 
 const visit = (id) => {
-  router.push(`/${id}`)
+  router.push(`/market/${id}`)
 }
 
 onMounted(async () => {
@@ -198,6 +207,7 @@ onMounted(async () => {
         product: products.find((p) => p.id === item.product_id)
       }))
       items_to_buy.value = [...favProducts.cartItem]
+      cartIsLoading.value = false
     }
   } else {
     console.log('not logged')
