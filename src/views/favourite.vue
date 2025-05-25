@@ -167,7 +167,7 @@
           </button>
           <div class="rate-price-div">
             <h4 id="rate">{{ Stars(product.rate) }}</h4>
-            <h4 id="price">{{ product.price }}</h4>
+            <h4 id="price">{{ (product.price * (1 - product.discount / 100)).toFixed(2) }}</h4>
           </div>
           <div class="btns-div">
             <Button
@@ -187,7 +187,10 @@
                 />
               </svg>
             </Button>
-            <Button id="add" class="to-cart">Add</Button>
+            <Button
+              @click="toCart(product.id)"
+              :class="[favProducts.cartList.has(product.id) ? 'incart' : 'uncart']"
+            ></Button>
           </div>
         </div>
       </main>
@@ -208,6 +211,7 @@ import {
   SelectLabel
 } from '@/components/ui/select/index.js'
 import Button from '@/components/ui/button/Button.vue'
+import { useThrottleFn } from '@vueuse/core'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useGetProductsStore } from '@/stores/getProducts'
 import { supabase, useUserSessionStore } from '@/stores/userSession'
@@ -232,20 +236,49 @@ if (props.categoryName) {
 }
 
 const toFav = async (product) => {
-
   if (userId.value) {
     if (!favProducts.favList.has(product)) {
+      favProducts.favList.add(product)
       const { error } = await supabase
         .from('favourites')
         .insert({ user_id: userId.value, product_id: product })
-      favProducts.favList.add(product)
     } else {
+      favProducts.favList.delete(product)
       const { error } = await supabase
         .from('favourites')
         .delete()
         .eq('user_id', userId.value)
         .eq('product_id', product)
-      favProducts.favList.delete(product)
+    }
+  } else {
+    userSession.setOpenLogWindow(true)
+  }
+}
+
+const toCart = async (product) => {
+  // const {
+  //   data: { user }
+  // } = await supabase.auth.getUser()
+
+  if (userId.value) {
+    const { data } = await supabase.from('carts').select('id').eq('user_id', userId.value)
+    let cart = data[0]
+    if (!favProducts.cartList.has(product)) {
+      if (data.length < 1) {
+        // создание записи корзины если у пользователя ее не было
+        await supabase
+          .from('carts')
+          .insert({ user_id: userId.value, created_at: new Date(Date.now()).toISOString() })
+        const { data } = await supabase.from('carts').select('id').eq('user_id', userId.value)
+        cart = data[0]
+      }
+      favProducts.cartList.add(product)
+      await supabase
+        .from('cart_items')
+        .insert({ cart_id: cart.id, product_id: product, quantity: 1 })
+    } else {
+      favProducts.cartList.delete(product)
+      await supabase.from('cart_items').delete().eq('cart_id', cart.id).eq('product_id', product)
     }
   } else {
     userSession.setOpenLogWindow(true)
@@ -253,11 +286,6 @@ const toFav = async (product) => {
 }
 
 onMounted(async () => {
-  getProducts.setSearch('') // именно эта страница не сбрасывает
-  getProducts.setCategoryName('') // именно эта страница не сбрасывает
-  getProducts.productsReset()
-  getProducts.fetchProducts(favProducts.favList)
-  window.addEventListener('scroll', handleScroll)
   const {
     data: { user }
   } = await supabase.auth.getUser()
@@ -271,12 +299,19 @@ onMounted(async () => {
     favIsLoading.value = false
   } else {
     alert('not authed')
+    return
   }
+  getProducts.setSearch('')
+  getProducts.setCategoryName('')
+  getProducts.productsReset()
+  getProducts.fetchProducts(favProducts.favList)
+  window.addEventListener('scroll', scrollHandler)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('scroll', scrollHandler)
 })
+
 // функционал скролинга
 const handleScroll = () => {
   const { scrollTop, clientHeight, scrollHeight } = document.documentElement
@@ -287,15 +322,12 @@ const handleScroll = () => {
     getProducts.fetchProducts(favProducts.favList)
   }
 }
+const scrollHandler = useThrottleFn(handleScroll, 500) // для установки лимита выполнения функции в ms
 
 // обработка карточек
-// скелетоны можно добавить
 const Stars = (rate) => {
-  if (0 < rate && rate < 2) return '★☆☆☆☆'
-  if (2 < rate && rate < 3) return '★★☆☆☆'
-  if (3 < rate && rate < 4) return '★★★☆☆'
-  if (4 < rate && rate < 5) return '★★★★☆'
-  return '★★★★★'
+  const filled = Math.round(rate)
+  return '★'.repeat(filled) + '☆'.repeat(5 - filled)
 }
 
 // функционал сортировки
@@ -405,7 +437,8 @@ h3 {
         .btns-div {
           display: flex;
           flex-direction: row;
-          .to-cart {
+          .incart,
+          .uncart {
             display: none;
           }
           Button {
@@ -574,13 +607,28 @@ h3 {
           background-color: rgb(228, 207, 207);
           color: rgb(236, 115, 115);
         }
-        .to-cart {
+        .incart,
+        .uncart {
           flex-grow: 1;
         }
-        .to-cart:hover {
+        .uncart {
+          background-color: #3d3535;
+        }
+        .uncart::after {
+          content: 'Add';
+        }
+        .incart {
+          background-color: #beb3b3;
+          color: #ffe8e8;
+        }
+        .incart::after {
+          content: 'Remove';
+        }
+        .incart:hover,
+        .uncart:hover {
           transition: 0.1s ease-out;
-          background-color: rgb(168 162 158);
-          color: rgb(12 10 9);
+          background-color: rgb(199, 185, 176);
+          color: rgb(63, 50, 42);
         }
       }
     }

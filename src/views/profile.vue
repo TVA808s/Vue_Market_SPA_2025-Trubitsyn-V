@@ -94,8 +94,12 @@ import { Input } from '@/components/ui/input'
 import { supabase } from '@/stores/userSession'
 import { onMounted, ref, computed, watch } from 'vue'
 import { useUserSessionStore } from '@/stores/userSession'
-import { useRouter } from 'vue-router'
-
+import { useRouter, useRoute } from 'vue-router'
+import { useFavProductsStore } from '@/stores/favProducts'
+import { useGetProductsStore } from '@/stores/getProducts'
+const route = useRoute()
+const getProducts = useGetProductsStore()
+const favProducts = useFavProductsStore()
 const userSession = useUserSessionStore()
 const userId = ref('')
 const router = useRouter()
@@ -134,9 +138,7 @@ onMounted(async () => {
 })
 
 const avatarLoaded = () => {
-  console.log(1)
   avatarIsLoading.value = false
-  console.log(avatarIsLoading.value)
 }
 
 watch(avatar, (value) => {
@@ -149,7 +151,6 @@ const openChangeInfo = async () => {
 }
 const changeInfo = async () => {
   if (pass.value && mail.value) {
-    console.log('auth changed')
     const { data, error } = await supabase.auth.updateUser({
       password: pass.value,
       email: mail.value
@@ -183,7 +184,6 @@ async function displayImage(event) {
     return
   }
   try {
-    console.log(filePath.value)
     const { data } = await supabase.storage.from('avatars').exists(filePath.value)
     if (data) {
       await supabase.storage.from('avatars').remove([filePath.value])
@@ -200,7 +200,10 @@ async function displayImage(event) {
 const logoutUser = async () => {
   const { error } = await supabase.auth.signOut()
   userSession.setLoggedIn(false)
-  router.push({ name: 'market' })
+  favProducts.favList.clear()
+  favProducts.cartList.clear()
+  getProducts.setCategoryName('')
+  router.push('/')
 }
 </script>
 

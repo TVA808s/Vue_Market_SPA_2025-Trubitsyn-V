@@ -168,7 +168,7 @@
           </button>
           <div class="rate-price-div">
             <h4 id="rate">{{ Stars(product.rate) }}</h4>
-            <h4 id="price">{{ product.price }}</h4>
+            <h4 id="price">{{ (product.price * (1 - product.discount / 100)).toFixed(2) }}</h4>
           </div>
           <div class="btns-div">
             <Button
@@ -213,6 +213,7 @@ import {
 } from '@/components/ui/select/index.js'
 import Button from '@/components/ui/button/Button.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useThrottleFn } from '@vueuse/core'
 import { useGetProductsStore } from '@/stores/getProducts'
 import { supabase, useUserSessionStore } from '@/stores/userSession'
 import { useFavProductsStore } from '@/stores/favProducts'
@@ -245,19 +246,20 @@ const toCart = async (product) => {
     let cart = data[0]
     if (!favProducts.cartList.has(product)) {
       if (data.length < 1) {
+        // создание записи корзины если у пользователя ее не было
         await supabase
           .from('carts')
           .insert({ user_id: userId.value, created_at: new Date(Date.now()).toISOString() })
         const { data } = await supabase.from('carts').select('id').eq('user_id', userId.value)
         cart = data[0]
       }
+      favProducts.cartList.add(product)
       await supabase
         .from('cart_items')
         .insert({ cart_id: cart.id, product_id: product, quantity: 1 })
-      favProducts.cartList.add(product)
     } else {
-      await supabase.from('cart_items').delete().eq('cart_id', cart.id).eq('product_id', product)
       favProducts.cartList.delete(product)
+      await supabase.from('cart_items').delete().eq('cart_id', cart.id).eq('product_id', product)
     }
   } else {
     userSession.setOpenLogWindow(true)
@@ -270,18 +272,17 @@ if (props.categoryName) {
 }
 
 const toFav = async (product) => {
-
   if (userId.value) {
     if (!favProducts.favList.has(product)) {
-      await supabase.from('favourites').insert({ user_id: userId.value, product_id: product })
       favProducts.favList.add(product)
+      await supabase.from('favourites').insert({ user_id: userId.value, product_id: product })
     } else {
+      favProducts.favList.delete(product)
       const { error } = await supabase
         .from('favourites')
         .delete()
         .eq('user_id', userId.value)
         .eq('product_id', product)
-      favProducts.favList.delete(product)
     }
   } else {
     userSession.setOpenLogWindow(true)
@@ -289,14 +290,10 @@ const toFav = async (product) => {
 }
 
 onMounted(async () => {
-  getProducts.productsReset()
-  getProducts.fetchProducts()
-  window.addEventListener('scroll', handleScroll)
-
   const {
     data: { user }
   } = await supabase.auth.getUser()
-  if (user) {
+  if (user != null) {
     userId.value = user.id
     const { data: favs } = await supabase
       .from('favourites')
@@ -308,15 +305,19 @@ onMounted(async () => {
       .select('cart_items (product_id)')
       .eq('user_id', userId.value)
     favProducts.cartList = new Set(carts[0].cart_items.map((item) => item.product_id))
-    marketIsLoading.value = false
   } else {
     console.log('not logged')
   }
+  getProducts.productsReset()
+  getProducts.fetchProducts()
+  window.addEventListener('scroll', scrollHandler)
+  marketIsLoading.value = false
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('scroll', scrollHandler)
 })
+
 // функционал скролинга
 const handleScroll = () => {
   const { scrollTop, clientHeight, scrollHeight } = document.documentElement
@@ -328,14 +329,12 @@ const handleScroll = () => {
   }
 }
 
+const scrollHandler = useThrottleFn(handleScroll, 500) // для установки лимита выполнения функции в ms
+
 // обработка карточек
-// скелетоны можно добавить
 const Stars = (rate) => {
-  if (0 < rate && rate < 2) return '★☆☆☆☆'
-  if (2 < rate && rate < 3) return '★★☆☆☆'
-  if (3 < rate && rate < 4) return '★★★☆☆'
-  if (4 < rate && rate < 5) return '★★★★☆'
-  return '★★★★★'
+  const filled = Math.round(rate)
+  return '★'.repeat(filled) + '☆'.repeat(5 - filled)
 }
 
 // функционал сортировки

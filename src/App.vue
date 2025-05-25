@@ -91,7 +91,7 @@ const categories = ref(['tv', 'audio', 'clothing', 'sports', 'electronics', 'gam
 
 onMounted(async () => {
   const {data} = await supabase.auth.getUser()
-  if (data.user.role === "authenticated") {
+  if (data.user != null && data.user.role === "authenticated") {
     userSession.setLoggedIn(true)
   }
 })
@@ -128,14 +128,15 @@ const loginUser = async () => {
   })
   if (error) {
     errorMessage.value = error.message
+    return
   }
-  else {
-    userSession.setLoggedIn(true)
-    closeLogWindow()
-    router.push(router.currentRoute.value.query.redirect)
-    mail.value = ''
-    pass.value = ''
-  }
+
+  userSession.setLoggedIn(true)
+  closeLogWindow()
+  // window.location.href = router.currentRoute.value.query.redirect || '/'
+  router.push(router.currentRoute.value.query.redirect)
+  mail.value = ''
+  pass.value = ''
 }
 const registerUser = async () => {
   const { data, error } = await supabase.auth.signUp({

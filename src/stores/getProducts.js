@@ -61,14 +61,13 @@ export const useGetProductsStore = defineStore('getProducts', () => {
         )
       }
 
-      if (favs) {
+      if (favs != undefined) {
         fetch = fetch.in('id', Array.from(favs))
       }
       const {data, error} = await fetch
 
       moreGoods.value = data.length >= 1
       products.value = new Set([...products.value, ...data])
-
     } catch (e) {
       console.log(e.message)
     } finally {
@@ -78,7 +77,7 @@ export const useGetProductsStore = defineStore('getProducts', () => {
   const productsReset = () => {
     filters.start = 0
     filters.end = 12
-    filters.favs = []
+    // filters.favs = []
     products.value.clear()
     moreGoods.value = true
   }

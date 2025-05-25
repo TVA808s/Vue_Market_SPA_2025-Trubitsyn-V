@@ -37,13 +37,13 @@
       <h2>Color: {{ product.color }}</h2>
     </div>
     <div class="addZone">
-      <div class="prices" v-if="product.discount > 0">
-        <h1>{{ product.price * (1 - product.discount / 100) }}$</h1>
-        <h3>was {{ product.price }}$</h3>
+      <div class="prices" >
+        <h1>{{ (product.price * (1 - product.discount / 100)).toFixed(2) }}$</h1>
+        <h3 v-if="product.discount > 0">was {{ product.price }}$</h3>
       </div>
-      <div class="prices" v-else>
+      <!-- <div class="prices" v-else>
         <h2>Price is {{ product.price }}$</h2>
-      </div>
+      </div> -->
       <div class="btns-div">
         <Button
           @click="toFav(product.id)"
@@ -111,10 +111,10 @@ onMounted(async () => {
         .select('cart_items (product_id)')
         .eq('user_id', userId.value)
       favProducts.cartList = new Set(carts[0].cart_items.map((item) => item.product_id))
-      productIsLoading.value = false
     } else {
       console.log('not logged')
     }
+    productIsLoading.value = false
   } catch (e) {
     console.log(e)
   }

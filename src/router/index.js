@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Market from '@/views/market.vue'
-import { useUserSessionStore } from '../stores/userSession';
+import { useUserSessionStore, supabase } from '../stores/userSession';
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -47,12 +48,18 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const userSession = useUserSessionStore();
   // Если маршрут требует авторизации, а пользователь не авторизован
-  if (to.meta.needsAuth && !userSession.loggedIn) {
-    userSession.setOpenLogWindow(true)
-    next({ name: 'market', query: {redirect: to.fullPath}})
+  // const { data: { user } } = await supabase.auth.getUser();
+  // const isLoggedIn = !!user;
+  if (to.meta.needsAuth) {
+    if (userSession.loggedIn) {
+      next()
+    } else {
+      userSession.setOpenLogWindow(true)
+      next({query: {redirect: to.fullPath}}) // name: 'market',
+    }
   }
   else {
     next()

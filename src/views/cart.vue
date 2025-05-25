@@ -28,7 +28,7 @@
             </th>
             <th class="title">{{ item.product.title.slice(0, 50) }}</th>
             <th>{{ item.product.category }}</th>
-            <th>{{ item.product.price * item.quantity }}</th>
+            <th>{{ (item.product.price * (1 - item.product.discount / 100) * item.quantity).toFixed(2) }}</th>
             <th>
               <div class="double-cell">
                 {{ item.quantity }}
@@ -96,7 +96,7 @@
               </div>
             </div>
             <div class="subInfo">
-              <h3>Final sum is {{ payBlock.total }}</h3>
+              <h3>Final sum is {{ payBlock.total.toFixed(2) }}</h3>
               <Button type="submit">Pay</Button>
             </div>
           </form>
@@ -117,7 +117,6 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 
-// оптимизация 1 - вмест массивов использовать сеты
 // оптимизация 2 - батчинг запросов к супабэйс
 
 const router = useRouter()
@@ -287,13 +286,13 @@ const decrease = async (item) => {
 }
 
 const remove = async (item) => {
+  favProducts.cartItem.delete(item)
+  items_to_buy.value.delete(item)
   await supabase
     .from('cart_items')
     .delete()
     .eq('cart_id', cart_id.value)
     .eq('product_id', item.product.id)
-  favProducts.cartItem.delete(item)
-  items_to_buy.value.delete(item)
 }
 </script>
 
