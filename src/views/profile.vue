@@ -97,7 +97,7 @@ import { useUserSessionStore } from '@/stores/userSession'
 import { useRouter } from 'vue-router'
 
 const userSession = useUserSessionStore()
-const user = ref('')
+const userId = ref('')
 const router = useRouter()
 const pass = ref('')
 const mail = ref('')
@@ -114,18 +114,18 @@ const reversedOrders = computed(() => {
 
 onMounted(async () => {
   const {
-    data: { user: authUser }
+    data: { user }
   } = await supabase.auth.getUser()
-  if (authUser.id) {
-    user.value = authUser.id
-    filePath.value = `${user.value}/avatar`
-    DisplayedEmail.value = authUser.email
+  if (user.id) {
+    userId.value = user.id
+    filePath.value = `${userId.value}/avatar`
+    DisplayedEmail.value = user.email
     const { data: urlData } = await supabase.storage.from('avatars').getPublicUrl(filePath.value)
     avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}` // supabase игнорирует query "t" из-за чего берет изображение по ссылке, а браузер не берет прошлое закешированное изображение из-за другого запроса к серверу
     const { data: myOrders, error } = await supabase
       .from('orders')
       .select('*, order_items (*)')
-      .eq('user_id', user.value)
+      .eq('user_id', userId.value)
     orders.value = myOrders
     if (orders.value.length > 0) {
       ordersAreLoading.value = false

@@ -1,10 +1,6 @@
 <template>
   <div class="cart">
     <h2>Cart</h2>
-    <!-- <div v-if="cartIsNull" class="cartIsEmpty information">
-      <h3>Soooo empty.......</h3>
-      <h3>Chose some from market to see it here</h3>
-    </div> -->
     <div v-if="cartIsLoading" class="skeletonCart" v-for="i in Array(8)">
       <Skeleton class="h-[100px] w-full"></Skeleton>
     </div>
@@ -55,11 +51,11 @@
         <Button @click="makeOrder()"><h2>Make an order</h2></Button>
         <div class="count-div">
           <h4>Goods</h4>
-          <h4>{{ goods }}</h4>
+          <h4>{{ payBlock.goods }}</h4>
         </div>
         <div class="cost-div">
           <h4>Cost</h4>
-          <h4>{{ cost }}</h4>
+          <h4>{{ payBlock.cost }}</h4>
         </div>
         <div class="discount-div">
           <h4>Discount</h4>
@@ -67,7 +63,7 @@
         </div>
         <div class="total-div">
           <h3>Total</h3>
-          <h3>{{ total.toFixed(2) }}</h3>
+          <h3>{{ payBlock.total.toFixed(2) }}</h3>
         </div>
       </div>
     </div>
@@ -100,7 +96,7 @@
               </div>
             </div>
             <div class="subInfo">
-              <h3>Final sum is {{ total }}</h3>
+              <h3>Final sum is {{ payBlock.total }}</h3>
               <Button type="submit">Pay</Button>
             </div>
           </form>
@@ -120,15 +116,20 @@ import { useFavProductsStore } from '@/stores/favProducts'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
+
+// оптимизация 1 - вмест массивов использовать сеты
+// оптимизация 2 - батчинг запросов к супабэйс
+
 const router = useRouter()
 const favProducts = useFavProductsStore()
 const userSession = useUserSessionStore()
 const masterCheck = ref(true)
 const cart_id = ref('')
-const items_to_buy = ref([])
+const items_to_buy = ref(new Set())
 const checkout = YooMoneyCheckout('1090142', { language: 'en' })
 const cartIsLoading = ref(true)
-const cartIsNull = ref(true)
+const userId = ref('')
+
 const payForOrder = async () => {
   const product_ids = []
   items_to_buy.value.forEach((item) => product_ids.push(item.id))
@@ -145,13 +146,10 @@ const payForOrder = async () => {
       body: { token: paymentToken, product_ids: product_ids }
     })
     if (paymentData.res.paid) {
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
       const { data: order, error } = await supabase
         .from('orders')
         .insert({
-          user_id: user.id,
+          user_id: userId.value,
           status: 'paid',
           total: paymentData.res.amount.value,
           created_at: new Date().toISOString()
@@ -159,7 +157,7 @@ const payForOrder = async () => {
         .select()
       if (order) {
         const { data: order_items, error } = await supabase.from('order_items').insert(
-          items_to_buy.value.map((item) => ({
+          Array.from(items_to_buy.value).map((item) => ({
             order_id: order[0].id,
             product_image: item.product.image,
             product_title: item.product.title,
@@ -188,7 +186,8 @@ onMounted(async () => {
     data: { user }
   } = await supabase.auth.getUser()
   if (user) {
-    const { data } = await supabase.from('carts').select('id').eq('user_id', user.id)
+    userId.value = user.id
+    const { data } = await supabase.from('carts').select('id').eq('user_id', userId.value)
     if (!data[0].id) {
       alert('add some to the cart')
     } else {
@@ -197,16 +196,18 @@ onMounted(async () => {
         .from('cart_items')
         .select('id, quantity, product_id')
         .eq('cart_id', data[0].id)
-        .in('product_id', favProducts.cartList)
+        .in('product_id', Array.from(favProducts.cartList))
       const { data: products } = await supabase
         .from('products')
         .select('title, category, price, id, stock, discount, image')
-        .in('id', favProducts.cartList)
-      favProducts.cartItem = cart_items.map((item) => ({
-        ...item,
-        product: products.find((p) => p.id === item.product_id)
-      }))
-      items_to_buy.value = [...favProducts.cartItem]
+        .in('id', Array.from(favProducts.cartList))
+      favProducts.cartItem = new Set(
+        cart_items.map((item) => ({
+          ...item,
+          product: products.find((p) => p.id === item.product_id)
+        }))
+      )
+      items_to_buy.value = new Set(favProducts.cartItem)
       cartIsLoading.value = false
     }
   } else {
@@ -215,7 +216,7 @@ onMounted(async () => {
 })
 
 const makeOrder = () => {
-  if (total.value < 1) {
+  if (payBlock.value.total < 1) {
     alert('Get sum goods first')
   } else {
     userSession.setOpenOrderWindow(true)
@@ -224,37 +225,39 @@ const makeOrder = () => {
 
 const masterCheckDoSum = () => {
   if (masterCheck.value) {
-    items_to_buy.value = [...favProducts.cartItem]
+    items_to_buy.value = new Set(favProducts.cartItem)
   } else {
-    items_to_buy.value = []
+    items_to_buy.value.clear()
   }
 }
 
 const checkboxDoSum = (item) => {
-  if (items_to_buy.value.includes(item)) {
-    items_to_buy.value.splice(items_to_buy.value.indexOf(item), 1)
+  if (items_to_buy.value.has(item)) {
+    items_to_buy.value.delete(item)
   } else {
-    items_to_buy.value.push(item)
+    items_to_buy.value.add(item)
   }
 }
 
-const goods = computed(() => {
-  return items_to_buy.value.reduce((sum, item) => sum + item.quantity, 0)
-})
+const payBlock = computed(() => {
+  return Array.from(items_to_buy.value).reduce(
+    (block, item) => {
+      const price = item.product.price
+      const discount = item.product.discount
+      const quantity = item.quantity
 
-const cost = computed(() => {
-  return items_to_buy.value.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+      block.goods += quantity
+      block.cost += price * quantity
+      block.total += price * (1 - discount / 100) * quantity
+      return block
+    },
+    { goods: 0, cost: 0, total: 0, sum: 0 }
+  )
 })
 
 const discount = computed(() => {
-  return Math.round((1 - total.value / cost.value) * 100) || 0
-})
-
-const total = computed(() => {
-  return items_to_buy.value.reduce(
-    (sum, item) => sum + item.product.price * (1 - item.product.discount / 100) * item.quantity,
-    0
-  )
+  const { cost, total } = payBlock.value
+  return cost > 0 ? Math.round((1 - total / cost) * 100) : 0
 })
 
 const increase = async (item) => {
@@ -271,10 +274,10 @@ const increase = async (item) => {
 }
 
 const decrease = async (item) => {
-  item.quantity -= 1
-  if (item.quantity === 0) {
+  if (item.quantity - 1 === 0) {
     remove(item)
   } else {
+    item.quantity -= 1
     await supabase
       .from('cart_items')
       .update({ quantity: item.quantity })
@@ -289,10 +292,8 @@ const remove = async (item) => {
     .delete()
     .eq('cart_id', cart_id.value)
     .eq('product_id', item.product.id)
-  const index = favProducts.cartItem.indexOf(item)
-  favProducts.cartItem.splice(index, 1)
-  const ind = items_to_buy.value.indexOf(item)
-  items_to_buy.value.splice(ind, 1)
+  favProducts.cartItem.delete(item)
+  items_to_buy.value.delete(item)
 }
 </script>
 

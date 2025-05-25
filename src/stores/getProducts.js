@@ -5,7 +5,7 @@ import { supabase } from './userSession'
 export const useGetProductsStore = defineStore('getProducts', () => {
   const search = ref('')
   const loading = ref(false)
-  const products = ref([])
+  const products = ref(new Set())
   const moreGoods = ref(true)
   const categoryName = ref('')
   const filters = reactive({
@@ -62,12 +62,12 @@ export const useGetProductsStore = defineStore('getProducts', () => {
       }
 
       if (favs) {
-        fetch = fetch.in('id', favs)
+        fetch = fetch.in('id', Array.from(favs))
       }
       const {data, error} = await fetch
 
       moreGoods.value = data.length >= 1
-      products.value = [...products.value, ...data]
+      products.value = new Set([...products.value, ...data])
 
     } catch (e) {
       console.log(e.message)
@@ -79,7 +79,7 @@ export const useGetProductsStore = defineStore('getProducts', () => {
     filters.start = 0
     filters.end = 12
     filters.favs = []
-    products.value = []
+    products.value.clear()
     moreGoods.value = true
   }
 

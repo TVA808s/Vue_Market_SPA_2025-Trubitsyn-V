@@ -172,7 +172,7 @@
           <div class="btns-div">
             <Button
               @click="toFav(product.id)"
-              :class="[favProducts.favList.includes(product.id) ? 'fav' : 'unfav']"
+              :class="[favProducts.favList.has(product.id) ? 'fav' : 'unfav']"
             >
               <svg
                 id="favourite"
@@ -217,6 +217,7 @@ const favProducts = useFavProductsStore()
 const getProducts = useGetProductsStore()
 const userSession = useUserSessionStore()
 const favIsLoading = ref(true)
+const userId = ref('')
 // работа категорий
 const props = defineProps({
   categoryName: {
@@ -231,22 +232,20 @@ if (props.categoryName) {
 }
 
 const toFav = async (product) => {
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
-  if (user) {
-    if (!favProducts.favList.includes(product)) {
+
+  if (userId.value) {
+    if (!favProducts.favList.has(product)) {
       const { error } = await supabase
         .from('favourites')
-        .insert({ user_id: user.id, product_id: product })
-      favProducts.favList.push(product)
+        .insert({ user_id: userId.value, product_id: product })
+      favProducts.favList.add(product)
     } else {
       const { error } = await supabase
         .from('favourites')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', userId.value)
         .eq('product_id', product)
-      favProducts.favList.splice(favProducts.favList.indexOf(product), 1)
+      favProducts.favList.delete(product)
     }
   } else {
     userSession.setOpenLogWindow(true)
@@ -263,11 +262,12 @@ onMounted(async () => {
     data: { user }
   } = await supabase.auth.getUser()
   if (user) {
+    userId.value = user.id
     const { data, error } = await supabase
       .from('favourites')
       .select('product_id')
-      .eq('user_id', user.id)
-    favProducts.favList = data.map((item) => item.product_id)
+      .eq('user_id', userId.value)
+    favProducts.favList = new Set(data.map((item) => item.product_id))
     favIsLoading.value = false
   } else {
     alert('not authed')
@@ -285,7 +285,6 @@ const handleScroll = () => {
     getProducts.filters.start = getProducts.filters.start + 12
     getProducts.filters.end = getProducts.filters.end + 12
     getProducts.fetchProducts(favProducts.favList)
-    console.log('scrolled')
   }
 }
 

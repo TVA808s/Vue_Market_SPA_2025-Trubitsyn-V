@@ -47,7 +47,7 @@
       <div class="btns-div">
         <Button
           @click="toFav(product.id)"
-          :class="[favProducts.favList.includes(product.id) ? 'fav' : 'unfav']"
+          :class="[favProducts.favList.has(product.id) ? 'fav' : 'unfav']"
           ><svg
             id="favourite"
             xmlns="http://www.w3.org/2000/svg"
@@ -63,7 +63,7 @@
         </Button>
         <Button
           @click="toCart(product.id)"
-          :class="[favProducts.cartList.includes(product.id) ? 'incart' : 'uncart']"
+          :class="[favProducts.cartList.has(product.id) ? 'incart' : 'uncart']"
         ></Button>
       </div>
     </div>
@@ -79,6 +79,7 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 const favProducts = useFavProductsStore()
 const userSession = useUserSessionStore()
 const productIsLoading = ref(true)
+const userId = ref('')
 const props = defineProps({
   productId: {
     type: String,
@@ -99,16 +100,17 @@ onMounted(async () => {
       data: { user }
     } = await supabase.auth.getUser()
     if (user) {
+      userId.value = user.id
       const { data: favs } = await supabase
         .from('favourites')
         .select('product_id')
-        .eq('user_id', user.id)
-      favProducts.favList = favs.map((item) => item.product_id)
+        .eq('user_id', userId.value)
+      favProducts.favList = new Set(favs.map((item) => item.product_id))
       const { data: carts } = await supabase
         .from('carts')
         .select('cart_items (product_id)')
-        .eq('user_id', user.id)
-      favProducts.cartList = carts[0].cart_items.map((item) => item.product_id)
+        .eq('user_id', userId.value)
+      favProducts.cartList = new Set(carts[0].cart_items.map((item) => item.product_id))
       productIsLoading.value = false
     } else {
       console.log('not logged')
@@ -127,20 +129,17 @@ const Stars = (rate) => {
 }
 
 const toFav = async (product) => {
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
-  if (user) {
-    if (!favProducts.favList.includes(product)) {
-      await supabase.from('favourites').insert({ user_id: user.id, product_id: product })
-      favProducts.favList.push(product)
+  if (userId.value) {
+    if (!favProducts.favList.has(product)) {
+      await supabase.from('favourites').insert({ user_id: userId.value, product_id: product })
+      favProducts.favList.add(product)
     } else {
       const { error } = await supabase
         .from('favourites')
         .delete()
-        .eq('user_id', user.id)
+        .eq('user_id', userId.value)
         .eq('product_id', product)
-      favProducts.favList.splice(favProducts.favList.indexOf(product), 1)
+      favProducts.favList.delete(product)
     }
   } else {
     userSession.setOpenLogWindow(true)
@@ -148,27 +147,28 @@ const toFav = async (product) => {
 }
 
 const toCart = async (product) => {
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
-  if (user) {
-    const { data } = await supabase.from('carts').select('id').eq('user_id', user.id)
+  // const {
+  //   data: { user }
+  // } = await supabase.auth.getUser()
+
+  if (userId.value) {
+    const { data } = await supabase.from('carts').select('id').eq('user_id', userId.value)
     let cart = data[0]
-    if (!favProducts.cartList.includes(product)) {
+    if (!favProducts.cartList.has(product)) {
       if (data.length < 1) {
         await supabase
           .from('carts')
           .insert({ user_id: user.id, created_at: new Date(Date.now()).toISOString() })
-        const { data } = await supabase.from('carts').select('id').eq('user_id', user.id)
+        const { data } = await supabase.from('carts').select('id').eq('user_id', userId.value)
         cart = data[0]
       }
       await supabase
         .from('cart_items')
         .insert({ cart_id: cart.id, product_id: product, quantity: 1 })
-      favProducts.cartList.push(product)
+      favProducts.cartList.add(product)
     } else {
       await supabase.from('cart_items').delete().eq('cart_id', cart.id).eq('product_id', product)
-      favProducts.cartList.splice(favProducts.cartList.indexOf(product), 1)
+      favProducts.cartList.delete(product)
     }
   } else {
     userSession.setOpenLogWindow(true)

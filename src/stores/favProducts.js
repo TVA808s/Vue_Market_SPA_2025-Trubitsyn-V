@@ -2,19 +2,19 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useFavProductsStore = defineStore('favProducts', () => {
-  const favList = ref([])
+  const favList = ref(new Set())
 
   const setFavList = (value) => {
     favList.value = value
   }
 
-  const cartList = ref([])
+  const cartList = ref(new Set())
 
   const setCartList = (value) => {
     cartList.value = value
   }
 
-  const cartItem = ref([])
+  const cartItem = ref(new Set())
 
   const setCartItem = (value) => {
     cartItem.value = value
