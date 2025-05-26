@@ -137,14 +137,13 @@ const loginUser = async () => {
     errorMessage.value = error.message
     return
   }
-
   userSession.setLoggedIn(true)
   closeLogWindow()
-  // window.location.href = router.currentRoute.value.query.redirect || '/'
   router.push(router.currentRoute.value.query.redirect)
   mail.value = ''
   pass.value = ''
 }
+
 const registerUser = async () => {
   const { data, error } = await supabase.auth.signUp({
     email: mail.value,

@@ -51,8 +51,6 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const userSession = useUserSessionStore();
   // Если маршрут требует авторизации, а пользователь не авторизован
-  // const { data: { user } } = await supabase.auth.getUser();
-  // const isLoggedIn = !!user;
   if (to.meta.needsAuth) {
     if (userSession.loggedIn) {
       next()
