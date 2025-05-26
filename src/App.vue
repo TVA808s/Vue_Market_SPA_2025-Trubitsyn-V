@@ -28,6 +28,13 @@
   <div class="content">
     <RouterView :key="$route.fullPath"  />
   </div>
+  <footer>
+    <div class="marquee-container">
+      <div class="marquee-content">
+        <h2>SELF MADE - SELF MADE - SELF MADE --- TRUBITSYN VYACHESLAV --- SELF MADE - SELF MADE - SELF MADE</h2>
+      </div>
+    </div>
+  </footer>
   <div class="logWindow" v-if="userSession.openLogWindow">
     <div class="logWindowContent">
       <div class="contentHeader">
@@ -160,7 +167,17 @@ const registerUser = async () => {
 
 <style lang="scss" scoped>
 @use '@/extends.scss';
-
+h1,
+h2,
+h3 {
+  @extend %cursor;
+}
+h2 {
+  @extend %h2;
+}
+h3 {
+  @extend %h3;
+}
 [data-hint] { position: relative; cursor: hint; }
 [data-hint]::after { opacity: 0; width: max-content; color: #FFFFFF; background-color: rgba(0,0,0,.6); border-radius: 6px; padding: 5px; content: attr(data-hint); font-size: 12px; font-weight: 400; line-height: 1em; position: absolute; top: 70px; left: 50%; transform: translate(-50%, -100%); pointer-events: none; transition: opacity 0.3s; }
 [data-hint]:hover::after { opacity: 1; }
@@ -244,7 +261,49 @@ const registerUser = async () => {
   .content{
     width: 95%;
     margin: 0 auto;
+    min-height: 100vh;
   }
+
+
+  footer{
+    width: 100%;
+  }
+  .marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  background: #ffc0c0;
+  color: #fff;
+  position: relative;
+  }
+  .marquee-container::before {
+    background: linear-gradient(to right, #ffc0c0, #ffc0c0);
+    left: 0;
+  }
+  .marquee-container::after {
+    background: linear-gradient(to left, #ffc0c0, #ffc0c0);
+    right: 0;
+  }
+  .marquee-content {
+    display: inline-block;
+    animation: marquee 15s linear infinite;
+    padding-left: 100%;
+  }
+  .marquee-content:hover {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+  .marquee-content h2 {
+    display: inline-block;
+    padding-right: 2em;
+  }
+
   .logWindow{
     width: 100%;
     height: 100vh;

@@ -11,7 +11,7 @@
         />
         <div class="sidebarButtons">
           <Skeleton v-if="avatarIsLoading" class="h-[30px] w-full"></Skeleton>
-          <h3 v-show="name != ''">{{ name }}</h3>
+          <h3 v-show="userName != ''">{{ userName }}</h3>
           <h3 v-show="!avatarIsLoading">{{ DisplayedEmail }}</h3>
           <Button @click="openChangeInfo()">change info</Button>
           <Button @click="logoutUser()">logout</Button>
@@ -112,6 +112,8 @@ const filePath = ref('')
 const orders = ref([])
 const avatarIsLoading = ref(true)
 const ordersAreLoading = ref(true)
+const rawPhoto = ref('')
+const userName = ref('')
 const reversedOrders = computed(() => {
   return [...orders.value].reverse()
 })
@@ -124,8 +126,12 @@ onMounted(async () => {
     userId.value = user.id
     filePath.value = `${userId.value}/avatar`
     DisplayedEmail.value = user.email
-    const { data: urlData } = await supabase.storage.from('avatars').getPublicUrl(filePath.value)
-    avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}` // supabase игнорирует query "t" из-за чего берет изображение по ссылке, а браузер не берет прошлое закешированное изображение из-за другого запроса к серверу
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url')
+      .eq('id', userId.value)
+    userName.value = data[0].full_name
+    avatar.value = `${data[0].avatar_url}?t=${new Date().getTime()}` // supabase игнорирует query "t" из-за чего берет изображение по ссылке, а браузер не берет прошлое закешированное изображение из-за другого запроса к серверу
     const { data: myOrders, error } = await supabase
       .from('orders')
       .select('*, order_items (*)')
@@ -141,40 +147,41 @@ const avatarLoaded = () => {
   avatarIsLoading.value = false
 }
 
-watch(avatar, (value) => {
-  if (value) avatarIsLoading.value = false
-})
-
 const openChangeInfo = async () => {
   userSession.setOpenChangeWindow(true)
   //
 }
 const changeInfo = async () => {
-  if (pass.value && mail.value) {
-    const { data, error } = await supabase.auth.updateUser({
-      password: pass.value,
-      email: mail.value
-    })
-  }
-  if (name.value) {
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.value)
-    if (profiles.length === 0) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert([{ id: user.value, avatar: '1313', full_name: name.value }])
-    } else if (profiles.length === 1) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ avatar: rawPhoto.value, full_name: name.value })
-        .eq('id', user.value)
-    } else {
-      console.log(error)
+  try {
+    if (pass.value || mail.value) {
+      const updates = {}
+      if (pass.value) updates.password = pass.value
+      if (mail.value) updates.email = mail.value
+      const { error } = await supabase.auth.updateUser(updates)
+      if (error) throw error
     }
+
+    if (name.value || rawPhoto.value) {
+      const profileUpdate = {}
+      if (name.value) profileUpdate.full_name = name.value
+      if (rawPhoto.value) profileUpdate.avatar_url = rawPhoto.value
+
+      const { error } = await supabase.from('profiles').upsert(
+        {
+          id: userId.value,
+          ...profileUpdate
+        },
+        { onConflict: 'id' }
+      )
+      if (error) throw error
+      avatar.value = rawPhoto.value
+      userName.value = name.value
+    }
+
+    userSession.setOpenChangeWindow(false)
+  } catch (error) {
+    console.log(error)
   }
-  userSession.setOpenChangeWindow(false)
 }
 
 async function displayImage(event) {
@@ -190,8 +197,7 @@ async function displayImage(event) {
     }
     await supabase.storage.from('avatars').upload(filePath.value, file, { upsert: true })
     const { data: urlData } = await supabase.storage.from('avatars').getPublicUrl(filePath.value)
-    avatar.value = `${urlData.publicUrl}?t=${new Date().getTime()}`
-    await supabase.from('profiles').update({ avatar_url: avatar.value }).eq('id', user.value)
+    rawPhoto.value = `${urlData.publicUrl}?t=${new Date().getTime()}`
   } catch (e) {
     console.log(e)
   }
